@@ -6,6 +6,24 @@ A personal prototype for evaluating safety behaviour in document-grounded AI sys
 
 ---
 
+## Research questions
+
+This prototype is designed to generate preliminary evidence on two questions that are, as of mid-2025, not answered in published literature at a top ML venue.
+
+**RQ1 — Domain-conditional over-refusal in professional RAG contexts**
+
+> Does the false-positive refusal rate of AI safety classifiers vary systematically across professional education domains (medical, legal, security, STEM) in RAG settings, and is the rate elevated for AMBER-tier queries relative to GREEN-tier queries matched on topic?
+
+Existing over-refusal benchmarks operate on general LLMs without a RAG grounding context and do not decompose results by professional domain (OR-Bench, ICML 2025; XSTest, NAACL 2024). RAG-specific over-refusal work has only emerged in 2025 — RagRefuse (arXiv:2510.10452) covers medical/chemical domains, and COVER (ACL 2025 Findings) distinguishes context- vs. query-triggered refusal — but neither uses a structured professional domain taxonomy or compares GREEN vs. AMBER tiers within the same domain. This prototype provides initial `fp_rate` estimates stratified by domain and tier across a hand-authored scenario store.
+
+**RQ2 — LLM judge calibration at the ambiguous professional-context/harm boundary**
+
+> Is Cohen's κ between an LLM safety judge and human labels systematically lower for AMBER-tier cases (professionally legitimate but superficially harm-resembling) than for GREEN-tier cases, and does position-bias instability (swap augmentation) correlate with proximity to the AMBER/RED decision boundary?
+
+Existing judge calibration studies report kappa only for clearly harmful vs. clearly safe content (SORRY-Bench, ICLR 2025: κ=0.53–0.84; HarmBench, ICML 2024: κ=0.59–0.64). No published work has isolated judge calibration specifically at the ambiguous professional-context/harm boundary, nor tested whether position bias (Wang et al., ACL 2024) is elevated there. This prototype provides preliminary κ-by-tier estimates and a direct test of whether swap-augmentation instability rate tracks AMBER-tier classification difficulty.
+
+---
+
 ## Why this exists
 
 RAG assistants present a safety profile distinct from free-form chat:
