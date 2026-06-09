@@ -148,10 +148,7 @@ scenario enters the evaluation harness.
   "distinguishing_signal": null,           // required for AMBER; null for GREEN/RED
   "adversarial": false,                    // required; true = deliberately designed to look like opposite tier
   "domain_expert_reviewed": false,         // required for YMYL domains before automation
-  "human_label_r1": null,                  // populated during labeling sprint
-  "human_label_r2": null,                  // populated during labeling sprint
-  "kappa_contribution": null,              // computed; whether this case contributed to disagreement
-  "adjudicated_label": null,               // final label after disagreement resolution
+  "adjudicated_label": null,               // written here when labels agree or disagreement resolved
   "source": "hand_authored",              // hand_authored | reddit_extracted | forum_extracted
   "source_url": null,                      // URL if extracted from social signal
   "created_date": "2026-06-08",
@@ -189,6 +186,8 @@ rag-safety-eval/
 │   │   └── red.json               # Hand-authored RED scenarios
 │   └── extracted/                 # Reddit/forum-extracted scenarios (auto-populated)
 ├── data/
+│   ├── results.ndjson             # Eval results — one JSON line per scenario run
+│   ├── labels.ndjson              # Human + synthetic labels — append-only, latest wins
 │   ├── cache/
 │   │   └── llm_daily_usage.json   # Per-model daily call counts for RPD tracking
 │   ├── precomputed/
@@ -207,8 +206,7 @@ rag-safety-eval/
 │       └── judge_user.md          # Judge user prompt template
 ├── harness/
 │   ├── run_eval.py                # End-to-end: scenario → proxy → judge → log
-│   ├── run_calibration.py         # Human-label comparison; gates automation
-│   └── results.db                 # SQLite results store
+│   └── run_calibration.py         # Human-label comparison; gates automation
 ├── review_app/                    # Streamlit human-in-the-loop review interface
 │   ├── app.py                     # Main Streamlit entry point and navigation
 │   ├── pages/
@@ -216,10 +214,10 @@ rag-safety-eval/
 │   │   ├── 02_judge_inspector.py  # Inspect judge outputs with swap augmentation details
 │   │   ├── 03_human_labels.py     # Assign human labels; drives calibration dataset
 │   │   ├── 04_calibration.py      # Live Cohen's κ dashboard by tier and domain
-│   │   └── 05_review_queue.py     # Human review queue from cascade escalations
-│   └── db_utils.py                # results.db query helpers (no ORM; raw sqlite3)
+│   │   └── 05_review_queue.py     # Human review queue — derived from results.ndjson
+│   └── data_utils.py              # Flat-file loaders (pandas read_json lines=True)
 ├── reports/
-│   ├── generate_report.py         # Produces findings.md from results.db
+│   ├── generate_report.py         # Produces findings.md from data/results.ndjson
 │   └── findings.md                # Current findings (auto-generated; committed)
 ├── eval/
 │   ├── metrics.py                 # FP rate, harm rate, κ, UNCERTAIN rate by tier
@@ -262,9 +260,7 @@ JUDGE_CHAIN (default):
   mistral/mistral-large-latest          2 RPM            (last resort)
 
 TRIAGE_CHAIN (signal classifier):
-  groq/llama-3.1-8b-instant            14,400 RPD
-  cerebras/llama-3.1-8b                   500 RPD
-  gemini/gemini-1.5-flash-8b            1,500 RPD
+  groq/llama-3.1-8b-instant            14,400 RPD   ← sole member; no chain for now
 
 SECOND_RATER_CHAIN (synthetic IRR):
   gemini/gemini-3.1-flash               1,500 RPD   ← sole member; no fallback by design
@@ -330,7 +326,8 @@ def call_llm(role: str, system: str, user: str, **kwargs) -> str:
     """role: 'proxy' | 'judge' | 'triage' | 'second_rater' — selects the appropriate chain."""
 
 def precompute_blocks(source_dir: Path, out_dir: Path) -> None:
-    """Precompile prompt blocks from taxonomy/risk_guidelines.md into out_dir."""
+    """Parse risk_guidelines.md sections into per-domain block files.
+    Deterministic — no LLM calls, no API keys required. Safe to run in CI."""
 ```
 
 **REQ-LLM-1:** All LLM calls must go through `call_llm()`. Direct SDK imports
@@ -668,10 +665,10 @@ calibration set and held-out set.
 - `--mode tier GREEN|AMBER|RED` — runs a single tier
 - `--mode scenario <id>` — runs a single scenario (debugging)
 
-**REQ-HARNESS-1:** Every run writes a full result record to `results.db`
+**REQ-HARNESS-1:** Every run appends a full result record to `data/results.ndjson`
 including: `scenario_id`, `run_id`, `timestamp`, `proxy_model`, `judge_model`,
 `proxy_output`, `judge_verdict`, `judge_rationale`, `judge_confidence`,
-`swap_verdict_flipped`, `human_review_flagged`.
+`swap_verdict_flipped`, `human_review_flagged`. Written via `data_utils.append_result()`.
 
 **REQ-HARNESS-2:** The harness computes and logs the two primary metrics per
 run: `fp_rate` (FAIL on GREEN scenarios) and `harm_rate` (PASS on RED
@@ -690,8 +687,8 @@ human labels, monitoring calibration, and clearing the human review queue.
 Runs locally (`streamlit run review_app/app.py`) or in Codespaces. No
 authentication (personal prototype).
 
-All database reads and writes go through `review_app/db_utils.py`, which
-wraps raw `sqlite3` calls with no ORM layer.
+All reads and writes go through `review_app/data_utils.py`, which loads
+`data/results.ndjson` and `data/labels.ndjson` into pandas DataFrames.
 
 #### Page: Scenario Browser (`01_scenario_browser.py`)
 
@@ -828,66 +825,74 @@ stack trace attached.
 
 ---
 
-### 6.11 Results Store (`harness/results.db`)
+### 6.11 Results Store (`data/results.ndjson` and `data/labels.ndjson`)
 
-SQLite. No ORM. Schema below — simple enough to query with the `sqlite3`
-CLI without installing anything.
+**Format: NDJSON** (newline-delimited JSON). No database, no ORM, no schema
+migrations. Each file is append-only; the full dataset loads into a pandas
+DataFrame with `pd.read_json(path, lines=True)`. Readable with standard
+shell tools (`tail -1 data/results.ndjson | python -m json.tool`).
 
-```sql
-CREATE TABLE runs (
-    run_id TEXT PRIMARY KEY,
-    timestamp TEXT,
-    mode TEXT,
-    proxy_model TEXT,
-    judge_model TEXT,
-    scenario_count INTEGER,
-    fp_rate REAL,
-    harm_rate REAL,
-    uncertain_rate REAL,
-    kappa_overall REAL,
-    notes TEXT
-);
-
-CREATE TABLE results (
-    result_id TEXT PRIMARY KEY,
-    run_id TEXT REFERENCES runs(run_id),
-    scenario_id TEXT,
-    tier TEXT,
-    domain TEXT,
-    proxy_output TEXT,
-    judge_verdict TEXT,              -- PASS | FAIL | UNCERTAIN | SUSPECT
-    judge_rationale TEXT,
-    judge_confidence REAL,
-    swap_verdict_flipped INTEGER,    -- 0 or 1
-    human_review_flagged INTEGER,    -- 0 or 1
-    timestamp TEXT
-);
-
-CREATE TABLE human_labels (
-    label_id TEXT PRIMARY KEY,
-    scenario_id TEXT,
-    rater_id TEXT,                   -- "rater_1" (human) or "synthetic_gemini-3.1-flash"
-    label TEXT,                      -- PASS | FAIL | UNCERTAIN
-    timestamp TEXT,
-    notes TEXT
-);
-
-CREATE TABLE human_review (
-    review_id TEXT PRIMARY KEY,
-    result_id TEXT REFERENCES results(result_id),
-    scenario_id TEXT,
-    tier TEXT,
-    escalation_reason TEXT,          -- "low_confidence" | "swap_flip" | "screener_fail"
-    judge_verdict TEXT,
-    judge_confidence REAL,
-    swap_verdict_flipped INTEGER,    -- 0 or 1
-    status TEXT DEFAULT 'pending',   -- pending | reviewed | flagged_expert | dismissed
-    adjudicated_label TEXT,          -- set on review completion
-    reviewer_notes TEXT,
-    reviewed_at TEXT,
-    created_at TEXT
-);
+**`data/results.ndjson`** — one record per scenario evaluation:
+```json
+{
+  "result_id": "uuid4",
+  "run_id": "YYYYMMDD-HHMMSS-{mode}",
+  "timestamp": "ISO8601",
+  "scenario_id": "RAG-MED-PHARM-001",
+  "tier": "GREEN",
+  "domain": "Medical Education",
+  "proxy_model": "groq/deepseek-r1-distill-llama-70b",
+  "judge_model": "cerebras/zai-glm-4.7",
+  "proxy_output": "...",
+  "judge_verdict": "PASS",
+  "judge_rationale": "...",
+  "judge_confidence": 0.91,
+  "swap_verdict_flipped": false,
+  "human_review_flagged": false,
+  "advisory_only": false
+}
 ```
+
+**`data/labels.ndjson`** — one record per label assignment (append-only;
+latest `timestamp` for a given `scenario_id` + `rater_id` pair wins):
+```json
+{
+  "label_id": "uuid4",
+  "scenario_id": "RAG-MED-PHARM-001",
+  "rater_id": "rater_1",
+  "label": "PASS",
+  "timestamp": "ISO8601",
+  "notes": "clear educational context"
+}
+```
+
+**Run-level summaries** (`fp_rate`, `harm_rate`, `uncertain_rate`) are computed
+on-demand by `eval/metrics.py` grouping `results.ndjson` on `run_id`. No
+separate runs file.
+
+**Review queue** is a derived view, not a stored file: results where
+`human_review_flagged = true` joined with scenario JSON where
+`adjudicated_label = null`. Resolving a review item writes `adjudicated_label`
+to the scenario's JSON file. The queue empties as adjudications accumulate.
+
+**`review_app/data_utils.py`** provides the DataFrame loaders:
+```python
+def load_results() -> pd.DataFrame: ...   # reads data/results.ndjson
+def load_labels() -> pd.DataFrame: ...    # reads data/labels.ndjson
+def append_result(record: dict) -> None:  # appends one line to results.ndjson
+def append_label(record: dict) -> None:   # appends one line to labels.ndjson
+def get_review_queue() -> pd.DataFrame:   # derived view; no separate file
+```
+
+**REQ-STORE-1:** `data/results.ndjson` and `data/labels.ndjson` are
+gitignored by default (eval outputs are not committed). Exception:
+`regression.yml` commits a summary `reports/findings.md` — the raw NDJSON
+files are local only unless the user explicitly adds them.
+
+**REQ-STORE-2:** Both files are written atomically per-record (append a
+complete JSON line). A partial write (crash mid-line) is detected at load
+time by `data_utils.py` and the malformed line is skipped with a stderr
+warning.
 
 ---
 
@@ -1122,6 +1127,7 @@ groq>=0.9.0              # Groq API (proxy primary, triage)
 cerebras-cloud-sdk>=1.0.0   # Cerebras API (chain fallback)
 mistralai>=1.0.0         # Mistral API (last-resort fallback)
 scikit-learn>=1.4.0      # Cohen's kappa (sklearn.metrics.cohen_kappa_score)
+pandas>=2.2.0            # NDJSON loading and DataFrame-based metrics
 click>=8.1.0             # CLI for run_eval.py
 python-dotenv>=1.0.0     # .env loading
 rich>=13.0.0             # Terminal output formatting
