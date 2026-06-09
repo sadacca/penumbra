@@ -256,9 +256,10 @@ PROXY_CHAIN (default):
   mistral/mistral-large-latest              100 RPD (fallback)
 
 JUDGE_CHAIN (default):
-  cerebras/qwen3-32b                    30 RPM, 64K ctx, 1M tokens/day  ← Qwen/Cerebras; independent from proxy + second rater
-  groq/llama-3.3-70b-versatile         14,400 RPD  (fallback-1; high volume)
-  mistral/mistral-large-latest          2 RPM       (last resort; slow but correct)
+  cerebras/zai-glm-4.7                  5 RPM, 64K ctx  ← 355B GLM; strongest available; preview tier
+  cerebras/gpt-oss-120b                 5 RPM, 64K ctx  (fallback-1; 120B; production stable)
+  groq/llama-3.3-70b-versatile         14,400 RPD       (fallback-2; high volume)
+  mistral/mistral-large-latest          2 RPM            (last resort)
 
 TRIAGE_CHAIN (signal classifier):
   groq/llama-3.1-8b-instant            14,400 RPD
@@ -281,7 +282,7 @@ model family at position-0:
 | Role | Provider | Model family | Position-0 model |
 |------|----------|-------------|-----------------|
 | Proxy | Groq | DeepSeek-R1 / Llama | `deepseek-r1-distill-llama-70b` |
-| Judge | Cerebras | Qwen | `qwen3-32b` |
+| Judge | Cerebras | GLM (Z.ai) | `zai-glm-4.7` (355B, preview) |
 | Second rater | Google | Gemini | `gemini-3.1-flash` |
 
 Gemini is intentionally absent from the `JUDGE_CHAIN` entirely. Having Gemini as
@@ -301,10 +302,16 @@ testing, but the check still runs and logs a warning.
 
 #### Rate limiting
 
-- Per-model interval: 6 seconds between calls to the same model
+- Per-model interval: configurable per provider; defaults:
+  - Cerebras: **13 seconds** (5 RPM limit; 60s / 5 = 12s minimum + 1s buffer)
+  - Groq: 6 seconds (10 RPM effective; well within 14,400 RPD)
+  - Gemini: 6 seconds
+  - Mistral: 32 seconds (2 RPM limit; 60s / 2 = 30s minimum + 2s buffer)
 - Global post-call pause: 2 seconds after every call (configurable via `LLM_POST_CALL_DELAY`)
 - Daily usage persisted to `data/cache/llm_daily_usage.json` (keyed by `model:YYYY-MM-DD`)
 - Soft limit at 85% of RPD: chain selection skips models above the soft limit
+- Per-model intervals are defined in `llm_client.py` alongside chain config and
+  override the global default when set
 
 #### Retry logic
 
@@ -993,10 +1000,12 @@ any paid-tier risk.
 - **Groq first for proxy:** highest RPD (14,400/day) and fastest inference;
   deepseek-r1-distill-llama-70b is strong enough for document-grounded
   simulation tasks
-- **Cerebras first for judge:** Qwen3-32B is a strong instruction-following
-  model; 64K context handles full judge prompts; 30 RPM and 1M tokens/day
-  are sufficient at current eval volumes; Cerebras provider is fully independent
-  from both Groq (proxy) and Google (second rater)
+- **Cerebras first for judge:** `zai-glm-4.7` (355B GLM) is the strongest
+  available Cerebras model; 64K context handles full judge prompts; 5 RPM
+  requires a 13s per-model interval (eval run of ~110 calls ≈ 24 min — acceptable
+  for infrequent CI runs); Cerebras provider is fully independent from both
+  Groq (proxy) and Google (second rater); `gpt-oss-120b` (120B, production
+  stable) is fallback-1 on the same provider
 - **Gemini is absent from the judge chain** — having Gemini as a judge fallback
   would produce correlated results with the Gemini second rater
 - **Mistral as judge last resort:** 2 RPM makes it impractical for full eval
