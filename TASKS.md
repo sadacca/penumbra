@@ -13,9 +13,12 @@ Approach: extraction-first, then hand-author to fill gaps.
 See `scenarios/extracted/SURVEY_NOTES.md` for gap analysis from the 2026-06-09 survey.
 
 #### Step 1 — Complete extracted scenario records (do first)
-- [ ] Hand-complete `scenarios/extracted/survey_2026-06-09.json` — fill `query` and
+- [x] Hand-complete `scenarios/extracted/survey_2026-06-09.json` — fill `query` and
   `source_doc_description` fields for all 5 partial records; write `classification_rationale`
   where missing; move records that pass review into `scenarios/seed/`
+  - 4 GREEN records → `scenarios/seed/green.json`
+  - 1 AMBER record → `scenarios/seed/amber.json`
+  - All `query` fields completed; `adjudicated_label` null pending calibration run
 - [ ] Add RED taxonomy examples from survey harm reports to `scenarios/taxonomy.md`
   (EchoLeak/AgentFlayer prompt injection, Reddit Answers source laundering)
 
