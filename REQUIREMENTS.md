@@ -224,6 +224,8 @@ rag-safety-eval/
 ├── eval/
 │   ├── metrics.py                 # FP rate, harm rate, κ, UNCERTAIN rate by tier
 │   └── thresholds.py             # Gate thresholds (configurable)
+├── experiments/
+│   └── doc_fidelity.py            # Description-vs-real-doc proxy fidelity comparison
 ├── .env.example                   # API key placeholders; no secrets in repo
 ├── requirements.txt
 └── README.md
@@ -249,12 +251,12 @@ picks the first model below 85% of its daily RPD soft limit. On 429, waits
 ```
 PROXY_CHAIN (default):
   groq/deepseek-r1-distill-llama-70b   14,400 RPD
-  gemini/gemini-1.5-flash               1,500 RPD
+  gemini/gemini-3.1-flash               1,500 RPD
   cerebras/llama-3.1-70b                  500 RPD
   mistral/mistral-large-latest              100 RPD (fallback)
 
 JUDGE_CHAIN (default):
-  gemini/gemini-1.5-flash               1,500 RPD
+  gemini/gemini-3.5-flash               1,500 RPD   ← current GA; distinct from second rater
   groq/llama-3.3-70b-versatile         14,400 RPD
   cerebras/gpt-oss-120b                   500 RPD
   mistral/mistral-small-latest            100 RPD (fallback)
@@ -263,7 +265,26 @@ TRIAGE_CHAIN (signal classifier):
   groq/llama-3.1-8b-instant            14,400 RPD
   cerebras/llama-3.1-8b                   500 RPD
   gemini/gemini-1.5-flash-8b            1,500 RPD
+
+SECOND_RATER_CHAIN (synthetic IRR):
+  gemini/gemini-3.1-flash               1,500 RPD   ← sole member; no fallback by design
 ```
+
+**Second rater design note:** `SECOND_RATER_CHAIN` is intentionally single-member.
+Consistency across runs requires the same model every time; falling back to a
+different model would make κ scores non-comparable across labelling sprints. If
+`gemini-3.1-flash` is unavailable, the calibration run fails loudly rather than
+silently producing incomparable results.
+
+**Model independence:** `JUDGE_CHAIN` uses `gemini-3.5-flash` (current GA) while
+`SECOND_RATER_CHAIN` uses `gemini-3.1-flash` — different model versions within the
+same family. Full cross-family independence between judge and second rater is not
+required (they serve different roles), but version independence is maintained to
+avoid the judge self-corroborating the second rater.
+
+**Gemma 4 availability:** `gemma-4-31b-it` is accessible via the same `GEMINI_API_KEY`
+through the Google AI API. It is not in any default chain but is available as a
+manual override via `SECOND_RATER_MODEL` env var for experimental comparison runs.
 
 **Cross-family enforcement:** `PROXY_CHAIN` and `JUDGE_CHAIN` must not share
 a model family for their top-ranked (most-used) members. Startup validation
@@ -292,7 +313,7 @@ All retries fail → raise LLMChainExhaustedError
 ```python
 # llm_client.py
 def call_llm(role: str, system: str, user: str, **kwargs) -> str:
-    """role: 'proxy' | 'judge' | 'triage' — selects the appropriate chain."""
+    """role: 'proxy' | 'judge' | 'triage' | 'second_rater' — selects the appropriate chain."""
 
 def precompute_blocks(source_dir: Path, out_dir: Path) -> None:
     """Precompile prompt blocks from taxonomy/risk_guidelines.md into out_dir."""
@@ -309,6 +330,13 @@ returning. A call that succeeds but fails to log is treated as a soft error
 warns at 80% of the model's context limit and raises `ContextLimitError` at
 100% before making the API call. Per-model limits are defined in
 `llm_client.py` alongside the chain config.
+
+**REQ-LLM-4:** `SECOND_RATER_CHAIN` must contain exactly one model. `call_llm()`
+raises `ConfigError` at startup if the chain has more than one member. If the
+second rater model returns a 429 or 5xx, the call fails immediately with
+`SecondRaterUnavailableError`; no fallback is attempted. Calibration runs that
+encounter this error must be aborted and retried — a partial calibration run
+with mixed rater models is worse than no run.
 
 ---
 
@@ -566,6 +594,18 @@ of confidence. The screener may auto-fail RED cases; it may not auto-pass them.
 **Purpose:** Measure judge agreement with human labels before automation is
 trusted. This is the gate between "we have a judge" and "we trust the judge."
 
+**Seed scenario authoring:** Seed scenario content (persona, query,
+source_doc_description, rationale, etc.) is drafted by Claude via a Claude Code
+session, grounded in domain research, and committed directly to `scenarios/seed/`.
+This is a one-time offline task, not a runtime API call. No `ANTHROPIC_API_KEY`
+is required for normal operation.
+
+**Synthetic second rater:** `human_label_r2` for all scenarios — both seed and
+extracted — is populated by `call_llm(role="second_rater", ...)` using
+`gemini-3.1-flash`. The `rater_id` written to `human_labels` is
+`synthetic_gemini-3.1-flash`. This applies uniformly to all scenarios so that
+κ scores are comparable across the full dataset and across labelling sprints.
+
 **Calibration dataset:** The `seed/` scenarios with both `human_label_r1` and
 `human_label_r2` populated (minimum 50 scenarios across all three tiers, with
 at least 10 per tier).
@@ -589,6 +629,13 @@ at least 10 per tier).
 **REQ-CAL-1:** `calibrate.py` must emit a machine-readable gate pass/fail
 JSON alongside its human-readable report. The `run_eval.py` harness reads
 this JSON and refuses to run automated assessment if any gate fails.
+
+**REQ-CAL-3 (first-run bootstrap):** On first run, no calibration gate JSON
+exists. `run_eval.py` defaults to advisory mode: all judge verdicts are logged
+with `advisory_only: true`, metrics are computed but not gated, and a prominent
+warning is printed. To suppress the warning in CI before first calibration,
+pass `--advisory-mode` explicitly. The flag documents intent; it does not change
+behaviour.
 
 **REQ-CAL-2:** A held-out 20% validation set of RED scenarios must be
 defined in `eval/thresholds.py` by scenario ID and must never be used
@@ -805,12 +852,59 @@ CREATE TABLE results (
 CREATE TABLE human_labels (
     label_id TEXT PRIMARY KEY,
     scenario_id TEXT,
-    rater_id TEXT,                   -- anonymised; "rater_1", "rater_2"
+    rater_id TEXT,                   -- "rater_1" (human) or "synthetic_gemini-3.1-flash"
     label TEXT,                      -- PASS | FAIL | UNCERTAIN
     timestamp TEXT,
     notes TEXT
 );
+
+CREATE TABLE human_review (
+    review_id TEXT PRIMARY KEY,
+    result_id TEXT REFERENCES results(result_id),
+    scenario_id TEXT,
+    tier TEXT,
+    escalation_reason TEXT,          -- "low_confidence" | "swap_flip" | "screener_fail"
+    judge_verdict TEXT,
+    judge_confidence REAL,
+    swap_verdict_flipped INTEGER,    -- 0 or 1
+    status TEXT DEFAULT 'pending',   -- pending | reviewed | flagged_expert | dismissed
+    adjudicated_label TEXT,          -- set on review completion
+    reviewer_notes TEXT,
+    reviewed_at TEXT,
+    created_at TEXT
+);
 ```
+
+---
+
+### 6.12 Fidelity Experiment (`experiments/doc_fidelity.py`)
+
+**Purpose:** Measure the gap between description-based proxy grounding and real
+document grounding. This is a recurring validation component, not a one-off
+script — it re-runs as the scenario store grows to detect systematic bias
+introduced by the description proxy.
+
+**Design:**
+- Takes a paired sample of scenarios (configurable N, default 10): each scenario
+  is run through the proxy twice — once with `source_doc_description` as grounding
+  context, once with a real document excerpt (stored in `experiments/fixtures/`)
+- Compares proxy outputs on: refusal rate, output length, output type fidelity
+  (did it produce a quiz vs. a summary?), and judge verdict distribution
+- Reports: mean absolute difference in judge confidence, refusal rate delta by
+  tier, qualitative divergence examples
+
+**REQ-FIDELITY-1:** Fixture documents for the experiment must be stored in
+`experiments/fixtures/` and must be either public domain, openly licensed, or
+synthetic. No copyrighted material in fixtures.
+
+**REQ-FIDELITY-2:** The experiment is not part of the regression CI run. It
+runs on manual dispatch only (`python experiments/doc_fidelity.py --n 10`).
+Results are written to `experiments/results/fidelity_{date}.json`.
+
+**REQ-FIDELITY-3:** If the fidelity experiment shows refusal rate delta > 15pp
+between description-based and real-doc grounding for any tier, a warning is
+logged to `reports/findings.md` and the proxy fidelity limitation in §10 is
+flagged for update.
 
 ---
 
@@ -874,8 +968,14 @@ RPD soft limit.
 | Triage (signal classifier) | Groq / llama-3.1-8b | ~240 | 14,400/day | ~432,000 ✓ |
 | Scenario extractor | Groq / llama-3.1-8b | ~120 | 14,400/day | ~432,000 ✓ |
 | RAG proxy | Groq / deepseek-r1-70b | ~200/run | 14,400/day | plenty ✓ |
-| LLM judge (standard) | Gemini / 1.5-flash | ~200/run | 1,500/day | ~45,000 ✓ |
-| LLM judge (swap aug) | Gemini / 1.5-flash | ~200/run (AMBER+RED only) | same chain | within budget ✓ |
+| LLM judge (standard) | Gemini / gemini-3.5-flash | ~200/run | 1,500/day | ~45,000 ✓ |
+| LLM judge (swap aug) | Gemini / gemini-3.5-flash | ~200/run (AMBER+RED only) | same chain | within budget ✓ |
+| Synthetic second rater | Gemini / gemini-3.1-flash | ~50/calibration run | 1,500/day | negligible ✓ |
+
+**Note:** Seed scenario *content* is generated by Claude via Claude Code session
+(one-time offline task). No Anthropic API calls occur at runtime; `ANTHROPIC_API_KEY`
+is not required for normal operation and is excluded from the devcontainer runtime
+secrets.
 
 All components stay well within free-tier limits at this volume. If volume
 increases, the chain automatically shifts load to Groq (higher RPD) before
@@ -917,13 +1017,16 @@ install from `requirements.txt` on container build.
   "forwardPorts": [8501],
   "secrets": {
     "GEMINI_API_KEY": {},
-    "ANTHROPIC_API_KEY": {},
     "GROQ_API_KEY": {},
     "CEREBRAS_API_KEY": {},
     "MISTRAL_API_KEY": {},
     "REDDIT_CLIENT_ID": {},
     "REDDIT_CLIENT_SECRET": {}
   }
+  // ANTHROPIC_API_KEY is not a runtime secret. Seed scenario content is
+  // generated offline via Claude Code and committed to the repo. Add it
+  // manually to your Codespaces user secrets only if re-running scenario
+  // generation.
 }
 ```
 
@@ -951,10 +1054,13 @@ These limitations are documented in the README, not papered over:
    (NotebookLM, Claude Projects, Copilot Notebooks) cannot be drawn from
    this prototype's results.
 
-2. **The judge is calibrated against one rater's labels.** A two-rater
-   Cohen's κ requires two independent raters. Until a second rater is
-   available, κ is reported as "single-rater estimate" and automation
-   gates are conservatively set to the two-rater thresholds.
+2. **The second rater is synthetic.** `human_label_r2` is produced by
+   `gemini-3.1-flash`, not a human. Inter-rater κ measures model-to-model
+   agreement on taxonomy application, not human-to-human agreement. It is
+   reported as "synthetic second rater κ" and interpreted as a taxonomy
+   coherence signal, not a human reliability estimate. The calibration gate
+   thresholds (κ ≥ 0.60 inter-rater) are intentionally conservative to
+   compensate.
 
 3. **Reddit signal is hypothesis generation, not ground truth.** A user
    post claiming over-refusal is a starting hypothesis. It becomes a
@@ -1011,34 +1117,93 @@ llama-cpp-python>=0.2.0  # Local Llama Guard 3 inference (~16GB RAM required)
 
 ---
 
-## 12. Open Questions (to resolve before v1 build)
+## 12. Resolved Design Decisions
 
-1. **Second rater source:** Single-rater κ is informative but not the stated
-   gate. Options: recruit a colleague; use a second LLM family as a "synthetic
-   second rater" (documented as such); use the held-out set as a proxy. Which
-   approach is acceptable must be decided before the calibration gate is set.
+Previously open questions, now closed:
 
-2. **Source document simulation fidelity:** The proxy uses a *description*
-   of the source document rather than the document itself to avoid copyright
-   issues. How much does this reduce proxy fidelity relative to real RAG
-   behaviour? An early experiment (5 scenarios with real uploaded docs vs.
-   5 with descriptions) should be run to characterise the gap.
+1. **Second rater source** → Synthetic: `gemini-3.1-flash` via Google AI API.
+   Sole member of `SECOND_RATER_CHAIN` (no fallback). Seed scenario *content*
+   authored by Claude via Claude Code (offline, committed to repo). All
+   `human_label_r2` values — seed and extracted — produced by the same
+   model for consistent IRR measurement. `rater_id` = `synthetic_gemini-3.1-flash`.
 
-3. **AMBER boundary calibration without domain experts:** For YMYL AMBER
-   scenarios, labelling requires domain expertise. If domain expert access
-   is not available in v1, how should YMYL AMBER scenarios be handled?
-   Options: exclude from v1; label with explicit uncertainty; use published
-   clinical/legal guidelines as a proxy for expert judgment.
+2. **Source document simulation fidelity** → Validated via recurring
+   `experiments/doc_fidelity.py` (§6.12). Not a blocker for v1 build; first
+   run after Phase 1 is complete. Results inform the proxy fidelity limitation
+   statement in §10 and trigger a warning if refusal rate delta exceeds 15pp.
 
-4. **Llama Guard 3 local inference viability:** The cheap screener design
-   assumes local Llama Guard 3 via `llama-cpp-python`. Minimum hardware
-   for acceptable latency is approximately 16GB RAM. If local inference
-   is not viable, the screener falls back to a rules-based regex pre-filter
-   (documented as a lower-fidelity alternative).
+3. **YMYL AMBER without domain experts** → Excluded from Phase 1 calibration.
+   YMYL AMBER scenarios are stored with `domain_expert_reviewed: false` and
+   excluded from κ computation until domain expert labels are available.
+   Phase 3 scope (see §13).
 
-5. **Swap augmentation budget on AMBER/RED at scale:** Swap augmentation
-   doubles judge calls on AMBER and RED scenarios. At 50 seed scenarios
-   (~30 AMBER+RED), this is ~60 judge calls per run — within Gemini's
-   free-tier budget. If the scenario store grows to 500+, the swap
-   augmentation budget needs revisiting (options: sample AMBER for swap
-   augmentation; reduce to RED-only; negotiate higher free-tier limits).
+4. **Llama Guard 3 local inference** → Phase 1 uses regex pre-filter only.
+   Llama Guard 3 integration is Phase 2 scope (see §13).
+
+5. **Swap augmentation budget at scale** → Phase 4 concern. No action in v1.
+   Documented in §10 as a known future scaling issue.
+
+---
+
+## 13. Phase Roadmap
+
+The build is structured in four phases with explicit entry/exit criteria.
+The requirements in §§4–11 describe the **Phase 1 complete** state unless
+otherwise noted.
+
+### Phase 1 — Core eval harness (v1 target)
+
+**Scope:**
+- Seed scenario store: ≥50 scenarios authored by Claude Code, covering
+  GREEN / AMBER (non-YMYL) / RED tiers across the domains in §3
+- `scenarios/risk_guidelines.md`: stub covering seed scenario domains;
+  rubric prose filled in post smoke-test
+- Regex-only cheap screener (no Llama Guard)
+- Full eval pipeline: proxy → judge (gemini-3.5-flash) → cascade → results.db
+- Synthetic second rater via gemini-3.1-flash for calibration
+- Streamlit review app (all 5 pages)
+- GitHub Actions: `smoke_test.yml`, `regression.yml`, `collect.yml`, `report.yml`
+- Fidelity experiment: first manual run after Phase 1 is deployed
+
+**Exit criteria:**
+- `smoke_test.yml` passes on a clean Codespaces launch
+- `run_eval.py --mode seed` completes end-to-end without errors in advisory mode
+- `calibrate.py` runs and produces a gate JSON (gates may fail; that is expected
+  before the labelling sprint)
+- Streamlit app launches and displays "No results yet" gracefully on empty DB
+- REQ-DEV-1: full seed eval runs in under 5 minutes in Codespaces
+
+### Phase 2 — Llama Guard screener
+
+**Scope:**
+- Replace regex screener with Llama Guard 3 via `llama-cpp-python`
+- Validate that auto-PASS and auto-FAIL rates on seed scenarios match
+  or exceed regex screener
+- Update cascade to use Llama Guard confidence scores
+- Hardware requirement: ≥16GB RAM; document Codespaces machine type needed
+
+**Entry criteria:** Phase 1 exit criteria met; calibration gates passing.
+
+### Phase 3 — YMYL AMBER + domain expert review
+
+**Scope:**
+- Introduce YMYL AMBER scenarios (medical, legal, mental health) with
+  `domain_expert_reviewed: false` initially
+- Domain expert labelling workflow (may use Streamlit `03_human_labels.py`
+  with a separate `RATER_ID`)
+- Update calibration gate to include YMYL AMBER tier once ≥10 expert-labelled
+  YMYL AMBER scenarios exist
+- Update `risk_guidelines.md` with YMYL-specific rubric clauses
+
+**Entry criteria:** Phase 2 complete; at least one domain expert rater available.
+
+### Phase 4 — Scale (500+ scenarios)
+
+**Scope:**
+- Swap augmentation sampling strategy for AMBER scenarios (sample rate TBD)
+- Consider RED-only swap augmentation to stay within free-tier budget
+- Scenario deduplication pipeline for extracted scenarios
+- Automated scenario quality filter (reject partial extractions with > 3 null
+  required fields)
+
+**Entry criteria:** Phase 3 complete; scenario store approaching 300+ scenarios.
