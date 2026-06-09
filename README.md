@@ -2,7 +2,7 @@
 
 A personal prototype for evaluating safety behaviour in document-grounded AI systems (RAG assistants). Measures both failure modes — **over-refusal** (blocking legitimate professional and educational use) and **harm** (failing to refuse genuinely harmful queries) — and treats them as co-equal problems.
 
-> **Scope note:** This is a prototype / educational example. The RAG proxy is a prompt-engineered simulation, not a test of any vendor's production system. Conclusions about specific products (NotebookLM, Claude Projects, Copilot Notebooks) cannot be drawn from this prototype's results.
+> **Design intent:** The harness is system-agnostic. The RAG proxy is a pluggable slot — any system that accepts a (source document, query) pair and returns text satisfies the interface. Phase 1 fills that slot with a prompt-engineered simulation so the harness can be calibrated without vendor API keys or production system access. Substituting a real RAG assistant (NotebookLM, Claude Projects, Copilot Notebooks) in that slot turns the same harness into a direct measurement instrument against that system's actual safety behaviour. No conclusions about specific products can be drawn from Phase 1 results, which use the simulated proxy only.
 
 ---
 
@@ -39,7 +39,7 @@ A system that refuses everything is as broken as one that allows everything. Thi
 
 1. **Scenario store** — hand-authored GREEN (should never be refused) and AMBER (ambiguous; acceptable but conflated with risk) scenarios across six domains. See [REQUIREMENTS.md §3](REQUIREMENTS.md) for the taxonomy.
 
-2. **RAG proxy** — a simulated document-grounded assistant. Default mode (`--mode seed`) reads pre-written fixture outputs — no API calls, no keys required. Live mode (`--mode live`) makes real LLM calls via the provider chain.
+2. **RAG proxy** — the system under evaluation. A pluggable slot: any RAG assistant that accepts (source document, query) and returns text satisfies the interface. Phase 1 fills this slot with a simulated LLM-backed proxy. Seed mode (`--mode seed`) reads pre-written fixture outputs for judge calibration — no API calls, no keys. Live mode (`--mode live`) calls the simulated proxy via the provider chain. Swapping in a real RAG assistant here measures that system's actual safety behaviour against the same scenario store and judge.
 
 3. **LLM judge** — evaluates proxy outputs against per-domain risk guidelines using a cascade (cheap screener → strong judge → human escalation). Swap augmentation detects position bias.
 

@@ -58,8 +58,10 @@ always reported together.
 
 ## 2. Non-Goals
 
-- Testing against any vendor's production safety system (all evaluation is
-  against a locally simulated RAG proxy)
+- Testing against any vendor's production safety system **in Phase 1** — evaluation
+  uses a locally simulated RAG proxy. The harness is designed so the proxy can be
+  replaced with a real system adapter once the judge is calibrated (see §6.5); that
+  is an explicit future direction, not a non-goal of the project
 - Building a production-grade moderation service
 - Covering non-RAG LLM interactions (free-form chat, agentic tool use)
 - Audio or video output formats (text output only in v1)
@@ -493,19 +495,30 @@ scenarios with `adjudicated_label: null`.
 
 ### 6.5 RAG Proxy (`rag_proxy/proxy.py`)
 
-**Purpose:** A locally-controlled simulation of a RAG assistant for evaluation
-purposes. Not a test of any vendor's production system. Explicitly documented
-as a proxy in the README.
+**Purpose:** The system under evaluation — the RAG assistant whose safety behaviour
+is being measured. The proxy is a pluggable slot in the harness. Its interface is:
+receive a scenario record (source document description + query) → return output text.
+Any real RAG assistant that satisfies this interface can be substituted here, at which
+point the harness measures that system's actual safety behaviour rather than the
+simulation's. Phase 1 fills this slot with a locally-controlled LLM-backed simulation
+to enable calibration without vendor API keys or production system access.
 
-**Two modes:**
+**Three modes:**
 
 - **Seed mode (`--mode seed`):** reads a pre-written proxy output from
   `scenarios/seed/fixtures/{scenario_id}.json` instead of making an API call.
   No LLM call, no API key required. Used for all calibration runs. This is the
-  default mode and the only mode run in CI.
+  default mode and the only mode run in CI. Fixtures represent expected proxy
+  behaviours (both correct responses and refusals) and serve as ground truth for
+  judge calibration — we are testing the judge, not the proxy, in this mode.
 - **Live mode (`--mode live`):** makes a real LLM call via `call_llm(role="proxy")`.
-  Opt-in only. Not run in CI. Only used for extended evaluation against live
-  provider behaviour.
+  Opt-in only. Not run in CI. Measures the simulated proxy's actual LLM-backed
+  behaviour against the scenario store.
+- **External system mode (future):** replace `rag_proxy/proxy.py` with an adapter
+  that drives a real RAG assistant (browser automation, vendor API wrapper, etc.)
+  via the same scenario-in / output-text-out interface. The judge cascade, metrics,
+  and review app require no changes. This is the intended use once the judge is
+  calibrated.
 
 **Live mode behaviour:**
 - Accepts a scenario record as input
