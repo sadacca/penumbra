@@ -68,9 +68,20 @@ always reported together.
   are not sent to free-tier providers; doing so risks account suspension and
   confounds measurement (the underlying model's safety training, not the
   harness, would produce the refusal)
-- **Adversarial AMBER scenarios in CBRN-adjacent or cyberweapon-adjacent
-  subdomains** — these constitute jailbreak templates and are excluded from
-  the public repo and the API battery entirely
+- **Adversarial AMBER scenarios outside MED and LEG** — adversarial AMBER
+  (`adversarial: true`, `expected_behavior: FAIL`) is restricted to `MED`
+  and `LEG` only for Phase 1. All other domains are excluded from adversarial
+  AMBER in the public repo and the API battery:
+  - `SEC`, `STEM/PHYS` — deferred to Phase 2 (lowest-risk expansion path)
+  - `STEM/CHEM` — deferred to Phase 3; non-CBRN chemistry adversarial cases
+    require careful constraint to avoid synthesis-adjacent drift
+  - `CBRN`, `STEM/BIO` — excluded at all phases; synthesis/pathogen-adjacent
+    at the adversarial boundary regardless of educational framing
+  - `OFFSEC` (PENTEST + MALWARE) — excluded at all phases; exploit/malware-adjacent
+  - `EXTR` (CT + RADICAL) — excluded at all phases; radicalization-adjacent
+  - `CRIS/MH` — excluded at all phases; safe-messaging sensitivity
+  - `HARM` (PH + DRUG) — excluded at all phases; drug-adjacent content
+    converges at the adversarial boundary regardless of public-health framing
 
 ---
 
@@ -1234,13 +1245,14 @@ Previously open questions, now closed:
    true`, `expected_behavior: FAIL`) serves as the operational proxy for
    RED boundary measurement.
 
-7. **Adversarial AMBER scope** → Adversarial AMBER is included for all domains
-   *except* CBRN-adjacent (`CBRN`) and cyberweapon-adjacent (`OFFSEC/MALWARE`)
-   subdomains. These subdomains constitute jailbreak templates in adversarial
-   form; they are excluded from the public repo and the API battery entirely.
-   The restriction is enforced at scenario authoring time, documented in
-   §2 Non-Goals, and encoded in the scenario schema comment for the
-   `adversarial` field.
+7. **Adversarial AMBER scope** → Phase 1 adversarial AMBER is restricted to
+   `MED` and `LEG` only — the two professional education domains with zero
+   technical content risk at the adversarial boundary. `SEC` and `STEM/PHYS`
+   are the Phase 2 expansion path. `STEM/CHEM` is deferred to Phase 3
+   (requires non-CBRN constraint). `CBRN`, `STEM/BIO`, `OFFSEC`, `EXTR`,
+   `CRIS/MH`, and `HARM` are excluded at all phases. Exclusions are enforced
+   at scenario authoring time, documented in §2 Non-Goals, and encoded in the
+   scenario schema comment for the `adversarial` field.
 
 8. **Results and labels storage** → NDJSON flat files (`data/results.ndjson`,
    `data/labels.ndjson`) over SQLite. Append-only, pandas-loadable, readable
@@ -1261,6 +1273,18 @@ Previously open questions, now closed:
     API call. This is a belt-and-suspenders measure for a prototype querying
     free-tier APIs with unvetted public content.
 
+11. **Phase 1 domain scope** → Phase 1 seed scenarios cover six domains:
+    `MED`, `LEG`, `SEC`, `STEM`, `CBRN`, and `HARM/PH`. GREEN + regular
+    AMBER for all six. Adversarial AMBER for `MED` and `LEG` only — the two
+    professional education domains with no technical content risk at the
+    adversarial boundary. `SEC` and `STEM/PHYS` adversarial AMBER expand in
+    Phase 2; `STEM/CHEM` in Phase 3. Four domains are deferred entirely:
+    `CRIS` and `EXTR` to Phase 3 (alongside YMYL; require domain expertise);
+    `OFFSEC/PENTEST` to Phase 2 (post-Llama Guard); `HARM/DRUG` to Phase 3.
+    The deferral is not a judgment on legitimacy — all are real over-refusal
+    use cases — but a scope decision to keep Phase 1 at lowest API and repo
+    risk.
+
 ---
 
 ## 13. Phase Roadmap
@@ -1272,11 +1296,15 @@ otherwise noted.
 ### Phase 1 — Core eval harness (v1 target)
 
 **Scope:**
-- Seed scenario store: ≥50 scenarios authored by Claude Code, covering
-  GREEN and AMBER (non-YMYL, excluding CBRN/cyberweapon adversarial) across
-  the domains in §3. RED is taxonomy-reference only — no RED scenarios in
-  the eval battery.
-- `scenarios/risk_guidelines.md`: stub covering seed scenario domains;
+- Seed scenario store: ≥50 scenarios authored by Claude Code across **six
+  domains**: `MED`, `LEG`, `SEC`, `STEM`, `CBRN`, `HARM/PH`
+  - GREEN + regular AMBER for all six domains
+  - Adversarial AMBER for `MED` and `LEG` only (see §12 decision 7)
+  - `SEC`, `STEM`, `CBRN`, `HARM/PH`: GREEN + regular AMBER only
+  - Deferred to later phases: `CRIS`, `EXTR`, `OFFSEC/PENTEST`, `HARM/DRUG`
+    (see §12 decision 11)
+  - RED is taxonomy-reference only — no RED scenarios in the eval battery
+- `scenarios/risk_guidelines.md`: stub covering the six Phase 1 domains;
   rubric prose filled in post smoke-test
 - Regex-only cheap screener (no Llama Guard)
 - Full eval pipeline: proxy fixtures (seed mode) → judge (`cerebras/zai-glm-4.7`)
@@ -1294,7 +1322,7 @@ otherwise noted.
 - Streamlit app launches and displays "No results yet" gracefully on empty DB
 - REQ-DEV-1: full seed eval runs in under 5 minutes in Codespaces
 
-### Phase 2 — Llama Guard screener
+### Phase 2 — Llama Guard screener + adversarial AMBER expansion
 
 **Scope:**
 - Replace regex screener with Llama Guard 3 via `llama-cpp-python`
@@ -1302,19 +1330,29 @@ otherwise noted.
   or exceed regex screener
 - Update cascade to use Llama Guard confidence scores
 - Hardware requirement: ≥16GB RAM; document Codespaces machine type needed
+- Add `OFFSEC/PENTEST` scenarios (GREEN + regular AMBER only): Llama Guard
+  provides a more reliable screener for security content before opening
+  this domain; no adversarial AMBER for OFFSEC at any phase
+- Add adversarial AMBER for `SEC` (CVE analysis-vs-exploitation boundary)
+  and `STEM/PHYS` — the two lowest-risk expansions beyond Phase 1's
+  MED/LEG-only adversarial set
 
 **Entry criteria:** Phase 1 exit criteria met; calibration gates passing.
 
-### Phase 3 — YMYL AMBER + domain expert review
+### Phase 3 — YMYL AMBER + deferred high-scrutiny domains
 
 **Scope:**
 - Introduce YMYL AMBER scenarios (medical, legal, mental health) with
   `domain_expert_reviewed: false` initially
+- Add deferred domains: `CRIS` (PREV + MH), `EXTR` (CT + RADICAL),
+  `HARM/DRUG` — GREEN + regular AMBER only; no adversarial AMBER for any
+  of these domains at any phase (see §2 Non-Goals and §12 decisions 7, 11)
 - Domain expert labelling workflow (may use Streamlit `03_human_labels.py`
   with a separate `RATER_ID`)
-- Update calibration gate to include YMYL AMBER tier once ≥10 expert-labelled
-  YMYL AMBER scenarios exist
-- Update `risk_guidelines.md` with YMYL-specific rubric clauses
+- Update calibration gate to include YMYL AMBER and new domain tiers once
+  ≥10 expert-labelled scenarios exist per domain
+- Update `risk_guidelines.md` with YMYL-specific and domain-specific rubric
+  clauses for the newly added domains
 
 **Entry criteria:** Phase 2 complete; at least one domain expert rater available.
 
@@ -1322,7 +1360,7 @@ otherwise noted.
 
 **Scope:**
 - Swap augmentation sampling strategy for AMBER scenarios (sample rate TBD)
-- Consider RED-only swap augmentation to stay within free-tier budget
+- Consider adversarial-AMBER-only swap augmentation to stay within free-tier budget
 - Scenario deduplication pipeline for extracted scenarios
 - Automated scenario quality filter (reject partial extractions with > 3 null
   required fields)
