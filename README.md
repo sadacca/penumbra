@@ -8,7 +8,7 @@ A personal prototype for evaluating safety behaviour in document-grounded AI sys
 
 ## Research questions
 
-This prototype is designed to generate preliminary evidence on two questions that are, as of mid-2025, not answered in published literature at a top ML venue.
+This prototype is designed to generate preliminary evidence on two questions that are, as of yet, not answered in published literature clearly.
 
 **RQ1 — Domain-conditional over-refusal in professional RAG contexts**
 
