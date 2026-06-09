@@ -68,16 +68,20 @@ always reported together.
   are not sent to free-tier providers; doing so risks account suspension and
   confounds measurement (the underlying model's safety training, not the
   harness, would produce the refusal)
-- **Adversarial AMBER scenarios outside the four core domains** — adversarial
-  AMBER (`adversarial: true`, `expected_behavior: FAIL`) is restricted to
-  `MED`, `LEG`, `SEC`, and `STEM` only. The following domains are excluded
-  from adversarial AMBER entirely, in the public repo and the API battery:
-  - `CBRN` — jailbreak template risk (synthesis-adjacent boundary)
-  - `OFFSEC` (PENTEST + MALWARE) — exploit/malware-adjacent at the adversarial boundary
-  - `EXTR` (CT + RADICAL) — radicalization-adjacent content even with academic framing
-  - `CRIS/MH` — safe-messaging sensitivity; adversarial cases are method-adjacent
-  - `HARM` (PH + DRUG) — drug-adjacent content converges at the adversarial boundary
-    regardless of public-health framing
+- **Adversarial AMBER scenarios outside MED and LEG** — adversarial AMBER
+  (`adversarial: true`, `expected_behavior: FAIL`) is restricted to `MED`
+  and `LEG` only for Phase 1. All other domains are excluded from adversarial
+  AMBER in the public repo and the API battery:
+  - `SEC`, `STEM/PHYS` — deferred to Phase 2 (lowest-risk expansion path)
+  - `STEM/CHEM` — deferred to Phase 3; non-CBRN chemistry adversarial cases
+    require careful constraint to avoid synthesis-adjacent drift
+  - `CBRN`, `STEM/BIO` — excluded at all phases; synthesis/pathogen-adjacent
+    at the adversarial boundary regardless of educational framing
+  - `OFFSEC` (PENTEST + MALWARE) — excluded at all phases; exploit/malware-adjacent
+  - `EXTR` (CT + RADICAL) — excluded at all phases; radicalization-adjacent
+  - `CRIS/MH` — excluded at all phases; safe-messaging sensitivity
+  - `HARM` (PH + DRUG) — excluded at all phases; drug-adjacent content
+    converges at the adversarial boundary regardless of public-health framing
 
 ---
 
@@ -1241,15 +1245,14 @@ Previously open questions, now closed:
    true`, `expected_behavior: FAIL`) serves as the operational proxy for
    RED boundary measurement.
 
-7. **Adversarial AMBER scope** → Adversarial AMBER is restricted to the four
-   lowest-risk professional education domains: `MED`, `LEG`, `SEC`, `STEM`.
-   All other domains are excluded from adversarial AMBER — CBRN (jailbreak
-   template risk), OFFSEC (exploit/malware-adjacent), EXTR (radicalization-
-   adjacent), CRIS/MH (safe-messaging sensitivity), and HARM/PH + HARM/DRUG
-   (drug-adjacent content converges at the adversarial boundary regardless of
-   public-health framing). Exclusions are enforced at scenario authoring time,
-   documented in §2 Non-Goals, and encoded in the scenario schema comment for
-   the `adversarial` field.
+7. **Adversarial AMBER scope** → Phase 1 adversarial AMBER is restricted to
+   `MED` and `LEG` only — the two professional education domains with zero
+   technical content risk at the adversarial boundary. `SEC` and `STEM/PHYS`
+   are the Phase 2 expansion path. `STEM/CHEM` is deferred to Phase 3
+   (requires non-CBRN constraint). `CBRN`, `STEM/BIO`, `OFFSEC`, `EXTR`,
+   `CRIS/MH`, and `HARM` are excluded at all phases. Exclusions are enforced
+   at scenario authoring time, documented in §2 Non-Goals, and encoded in the
+   scenario schema comment for the `adversarial` field.
 
 8. **Results and labels storage** → NDJSON flat files (`data/results.ndjson`,
    `data/labels.ndjson`) over SQLite. Append-only, pandas-loadable, readable
@@ -1271,16 +1274,16 @@ Previously open questions, now closed:
     free-tier APIs with unvetted public content.
 
 11. **Phase 1 domain scope** → Phase 1 seed scenarios cover six domains:
-    `MED`, `LEG`, `SEC`, `STEM`, `CBRN`, and `HARM/PH`. This gives full
-    GREEN + regular AMBER coverage for all six, adversarial AMBER for
-    `MED`/`LEG`/`SEC`/`STEM` only (decision 7), and CBRN/HARM/PH without
-    adversarial AMBER. Four domains are deferred: `CRIS` and `EXTR` move
-    to Phase 3 (alongside YMYL AMBER; require domain expertise and
-    specialized rubric); `OFFSEC/PENTEST` moves to Phase 2 (post-Llama
-    Guard, where screener confidence on security content is better
-    established); `HARM/DRUG` moves to Phase 3 with CRIS. The deferral
-    is not a judgment on legitimacy — all are real over-refusal use cases —
-    but a scope decision to keep Phase 1 at lowest API and repo risk.
+    `MED`, `LEG`, `SEC`, `STEM`, `CBRN`, and `HARM/PH`. GREEN + regular
+    AMBER for all six. Adversarial AMBER for `MED` and `LEG` only — the two
+    professional education domains with no technical content risk at the
+    adversarial boundary. `SEC` and `STEM/PHYS` adversarial AMBER expand in
+    Phase 2; `STEM/CHEM` in Phase 3. Four domains are deferred entirely:
+    `CRIS` and `EXTR` to Phase 3 (alongside YMYL; require domain expertise);
+    `OFFSEC/PENTEST` to Phase 2 (post-Llama Guard); `HARM/DRUG` to Phase 3.
+    The deferral is not a judgment on legitimacy — all are real over-refusal
+    use cases — but a scope decision to keep Phase 1 at lowest API and repo
+    risk.
 
 ---
 
@@ -1296,8 +1299,8 @@ otherwise noted.
 - Seed scenario store: ≥50 scenarios authored by Claude Code across **six
   domains**: `MED`, `LEG`, `SEC`, `STEM`, `CBRN`, `HARM/PH`
   - GREEN + regular AMBER for all six domains
-  - Adversarial AMBER for `MED`, `LEG`, `SEC`, `STEM` only
-  - `CBRN` and `HARM/PH`: GREEN + regular AMBER only (no adversarial AMBER)
+  - Adversarial AMBER for `MED` and `LEG` only (see §12 decision 7)
+  - `SEC`, `STEM`, `CBRN`, `HARM/PH`: GREEN + regular AMBER only
   - Deferred to later phases: `CRIS`, `EXTR`, `OFFSEC/PENTEST`, `HARM/DRUG`
     (see §12 decision 11)
   - RED is taxonomy-reference only — no RED scenarios in the eval battery
@@ -1319,7 +1322,7 @@ otherwise noted.
 - Streamlit app launches and displays "No results yet" gracefully on empty DB
 - REQ-DEV-1: full seed eval runs in under 5 minutes in Codespaces
 
-### Phase 2 — Llama Guard screener + OFFSEC/PENTEST
+### Phase 2 — Llama Guard screener + adversarial AMBER expansion
 
 **Scope:**
 - Replace regex screener with Llama Guard 3 via `llama-cpp-python`
@@ -1330,6 +1333,9 @@ otherwise noted.
 - Add `OFFSEC/PENTEST` scenarios (GREEN + regular AMBER only): Llama Guard
   provides a more reliable screener for security content before opening
   this domain; no adversarial AMBER for OFFSEC at any phase
+- Add adversarial AMBER for `SEC` (CVE analysis-vs-exploitation boundary)
+  and `STEM/PHYS` — the two lowest-risk expansions beyond Phase 1's
+  MED/LEG-only adversarial set
 
 **Entry criteria:** Phase 1 exit criteria met; calibration gates passing.
 
