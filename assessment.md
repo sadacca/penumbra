@@ -669,3 +669,41 @@ Sources consulted during this review:
 [AILuminate v1.0 (arXiv 2503.05731)](https://arxiv.org/html/2503.05731v1) ·
 [AILuminate benchmark](https://mlcommons.org/benchmarks/ailuminate/) ·
 [AILuminate suite (GitHub)](https://github.com/mlcommons/ailuminate)
+
+---
+
+## Implementation log — v3 documentation update (2026-06-11)
+
+All recommendations above were applied to the planning documentation
+(REQUIREMENTS.md v3, README.md, TASKS.md). Disposition map:
+
+| Rec | Assessment ref | Applied in |
+|-----|----------------|-----------|
+| R1 — RQ1 construct named; novelty claim narrowed (RefusalBench cited) | A1, D2 | README RQ1 |
+| R2 — metric split `judge_flag_rate_green` / `system_refusal_rate_green`; RQ1 live-only | A2 | REQUIREMENTS §0, §7.1, REQ-HARNESS-2, REQ-SUT-5; README |
+| R3 — refusal detector; three-way `response_type` + `refusal_reason`; WildGuard P2 | A3, D1, D2 | REQ-JUDGE-6, §12 decision 4, judge output schema, tree |
+| R4 — Phase 1 hypothesis-generating; n + Wilson CI everywhere; k≥3 repeats; power calc P2 | A4 | §7.1 rules, REQ-HARNESS-4, §13 |
+| R5 — `topic_id` pairing; McNemar; shared templates | A5 | §4 schema + pairing rule, §7.1 |
+| R6 — document factorial (`doc_condition`); synthetic full documents as norm | A6, B9 | §4, §6.5 adapter 2, §6.12 rewrite, §12 decision 16 |
+| R7 — second human rater ≥50-item subset; raw agreement + PABAK/AC1 | A7 | REQ-CAL-5, §6.7 outputs, §7.1 |
+| R8 — ex-ante boundary proximity (adversarial flag, rater confidence, IRT P4) | A7, D5 | §7.4, REQ-APP-4, labels schema |
+| R9 — judge ECE as named output; consistency confidence; conformal λ | A7, B4, D4 | §6.6.3, REQ-CAS-1, §6.7, §12 decision 18 |
+| R10 — pre-registered `analysis_plan.md` | A8 | §7.4, tree, TASKS, Phase 1 exit criteria |
+| R11 — blinded labelling UI + blinded second-rater prompt | B1 | REQ-APP-4 rewrite, REQ-CAL-4, §12 decision 17 |
+| R12 — judge-side provenance hashes; trend-integrity guard | B2 | REQ-HARNESS-1, §6.11 record, §7.2 |
+| R13 — statistics in metrics.py (Wilson, bootstrap, McNemar, κ CI) | B3 | §7.1 rules, TASKS eval section |
+| R14 — thresholds as data artifact `eval/thresholds.json` | B4 | REQ-CAS-1, REQ-CAL-2, tree |
+| R15 — circularity mitigations (frozen live fixtures, blinding, 2nd human) | B5 | §10 item 2, TASKS scenario content |
+| R16 — CI alerts in scenario flips, persist across re-run | B6 | §6.10 regression.yml |
+| R17 — Reddit collector deferred to Phase 3 | B7 | G1, §2, §5 tree, §6.10 collect.yml, §12 decision 13, §13, TASKS |
+| R18 — thresholds = regression gates; comparative reporting headline | B8 | §7.1 rules, §6.5 purpose, §12 decision 15 |
+| R19 — SUT adapter interface (5 adapters, `system_id`) | C1 | §6.5 rewrite, REQ-SUT-1..5, tree, README |
+| R20 — dataset release: semver, licences, canary GUID, private split, contribution guide | C2 | §4 contamination note, §12 decision 19, §13 Phase 4 |
+| R21 — machine-readable RAG Refusal Report + frontier | C3 | §7.3, §7.2 findings sections, tree |
+| R22 — **MLCommons AILuminate v1.0 hazard taxonomy adopted as the harm-category standard** | C4 + user request | new §3.0 (12 categories + domain crosswalk + REQ-TAX-1), `ailuminate_hazards` schema field, RED table restated, guideline blocks keyed by tier × hazard slug, README section |
+| R23 — judge harness separable | C5 | implicit in §6.5 system-agnostic framing (no scenario-store imports in judge/) |
+| R24 — verbosity-bias monitor; Zheng et al. cited for cross-family | D3 | REQ-JUDGE-7, §10 item 6, §7.2 |
+| R25 — disagreement retention; label-distribution reporting; Krippendorff's α | D5 | REQ-CAL-6 |
+| R26 — injection scenario class (both directions) Phase 3; problem statement scoped; NIST AI RMF mapping | D6 | §0 scope note, §13 Phase 3, README AILuminate section |
+| R27 — ensemble evaluator exploration | D6 | §13 Phase 4 |
+| R28 — generation-with-curation pipeline (OR-Bench / RefusalBench methods) | D7 | §13 Phase 4, TASKS Phase 4 |
