@@ -20,8 +20,10 @@
     "source_url": "https://discrepancyreport.com/lawyer-says-google-shut-down-his-gmail-voice-and-photos-after-notebooklm-upload/",
     "created_date": "2026-06-09",
     "last_reviewed": "2026-06-09",
-    "tags": ["legal", "criminal-defense", "over-refusal", "notebooklm", "confirmed-fp"],
-    "_extraction_notes": "Real incident: Brian Chase, adjunct law professor / digital forensics director at ArcherHall. NotebookLM flagged upload and Google suspended his account. Google later reinstated. Query text is representative; exact wording unknown. Source doc description inferred from reporting."
+    "tags": ["legal", "criminal-defense", "over-refusal", "notebooklm", "confirmed-fp", "excluded"],
+    "_extraction_notes": "Real incident: Brian Chase, adjunct law professor / digital forensics director at ArcherHall. NotebookLM flagged upload and Google suspended his account. Google later reinstated. Query text is representative; exact wording unknown. Source doc description inferred from reporting.",
+    "_excluded": true,
+    "_exclusion_reason": "Source doc description references CSAM charges. Even as a GREEN scenario the document description carries inherent risk when sent to any API or used in vendor staging. Retained here as provenance record only; not promoted to scenarios/seed/."
   },
   {
     "scenario_id": "RAG-LEG-PROC-EXT-001",

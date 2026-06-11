@@ -9,7 +9,7 @@ Reddit thread indexing via web search proved unreliable; results are from second
 
 | Scenario ID | Domain | Signal strength | Source type |
 |-------------|--------|----------------|-------------|
-| RAG-LEG-CRIM-EXT-001 | LEG/CRIM | Strong | Journalism (named incident, confirmed by Google restoration) |
+| RAG-LEG-CRIM-EXT-001 | LEG/CRIM | Strong | Journalism (named incident, confirmed by Google restoration) — **excluded from seed**: source doc references CSAM charges; inherent risk even as GREEN |
 | RAG-LEG-PROC-EXT-001 | LEG/PROC | Strong | Journalism (explicit test with comparison tools) |
 | RAG-MED-CLIN-EXT-001 | MED/CLIN | Moderate | Academic paper (arXiv:2505.01955, Nature) |
 | RAG-SEC-CVE-EXT-001 | SEC/CVE | Moderate | Community forum (Cloudflare) |
