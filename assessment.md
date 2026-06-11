@@ -14,6 +14,44 @@ consolidates the highest-leverage recommendations.
 
 ---
 
+## Executive summary
+
+**Overall:** The research aims target a real, verifiable gap (domain- and
+tier-stratified over-refusal in grounded settings; judge calibration at the
+ambiguous boundary), and the engineering plan is unusually disciplined for a
+prototype — calibration gates, provider independence, honest limitations.
+The dominant risks are *measurement-validity* risks, not engineering risks:
+as currently specified, the default (seed) mode measures the judge rather
+than any RAG system, the verdict schema cannot distinguish a refusal from a
+judged-bad answer, and the calibration labels that gate all automation are
+collected through a UI that shows raters the expected answer. All are fixable
+with schema fields, metric definitions, and framing — before code exists,
+which is the right time.
+
+**Top recommendations, by leverage:**
+
+| # | Recommendation | Part |
+|---|---------------|------|
+| 1 | Blind the labelling UI and second-rater prompt: hide `expected_behavior`, rationale, and `adversarial` flag from raters | B1 |
+| 2 | Split `fp_rate` into `judge_flag_rate` (seed; RQ2) vs `system_refusal_rate` (live; RQ1); scope RQ1 to live mode | A2 |
+| 3 | Add a dedicated refusal-detection step with a three-way `response_type` (full/partial compliance, refusal); WildGuard fills this slot | A3, D1 |
+| 4 | Add a document-side factorial (matched / off-topic / flagged-terms documents) — the change that makes this a *RAG* eval rather than a chat eval; requires synthetic full documents over description-grounding | A6, B9 |
+| 5 | Introduce a system-under-test adapter interface (fixture / prompt-sim / local-RAG / API / human-transcript) — converts the prototype into a framework that can assess open and closed RAG applications | C1 |
+| 6 | Reframe Phase 1 as hypothesis-generating; report all rates with n + Wilson CIs; add `topic_id` pairing and paired tests; write a short pre-registered analysis plan | A4, A5, A8 |
+| 7 | Replace the verbalized-confidence cascade threshold with consistency-based confidence and conformal calibration of λ; report judge ECE by tier | B4, D4 |
+| 8 | Add judge-side provenance (`judge_prompt_hash`, `taxonomy_version`, block hashes) to results so rubric iteration doesn't break trend comparability | B2 |
+| 9 | Treat the scenario store as a dataset release: semver, license, canary GUID, private held-out split, contribution guide; crosswalk the taxonomy to MLCommons AILuminate | C2, C4 |
+| 10 | Descope the Reddit collector from Phase 1; reinvest in a second human rater on a 50-item subset and the document factorial | B7, A7 |
+
+**Literature additions that change the design** (Part D): RefusalBench
+(grounded selective refusal via document perturbation — also requires
+narrowing RQ1's novelty claim), WildGuard (refusal detection), Zheng et al.'s
+verbosity-bias check, conformal/selective-evaluation methods for the cascade,
+prevalence-robust agreement statistics and IRT difficulty for RQ2, and
+AILuminate's private-split and taxonomy practices.
+
+---
+
 ## Part A — Assessment of the research aims
 
 ### A0. What the project gets right
@@ -385,4 +423,249 @@ Part A.
 
 ---
 
-*Parts C–D follow.*
+## Part C — From personal prototype to a framework of general value
+
+The brief asks where this could become "a framework of general value to the
+open source community in assessing closed and open RAG based applications."
+The current scope note explicitly disclaims that ambition ("conclusions about
+specific products cannot be drawn"). That disclaimer is correct *for the
+prompt-simulated proxy* — but it is a property of one component, not of the
+architecture. The pieces below would convert the disclaimer from a design
+ceiling into a configuration choice.
+
+### C1. The single biggest change: a system-under-test (SUT) adapter interface
+
+Everything in the harness downstream of the proxy — judge, cascade,
+calibration, metrics, review app — is already system-agnostic. The proxy is
+the only hardwired component. Replace `rag_proxy/proxy.py`'s two modes with
+an adapter interface:
+
+```python
+class RAGSystemAdapter(Protocol):
+    def ingest(self, documents: list[Document]) -> SessionHandle: ...
+    def query(self, session: SessionHandle, query: str) -> RAGResponse: ...
+    # RAGResponse: raw text + optional metadata (citations, refusal signal,
+    #              moderation flags if the system surfaces them)
+```
+
+with five adapters, in rough order of effort:
+
+1. **Fixture adapter** — current seed mode, unchanged.
+2. **Prompt-sim adapter** — current live mode, unchanged (now honestly named
+   as one simulated SUT among many).
+3. **Local-RAG adapter** — LlamaIndex/LangChain pipeline with a real
+   embedding retriever over the synthetic documents (B9). This adds the
+   missing retrieval dimension (multi-doc, distractor passages) and tests
+   *open* RAG stacks people actually deploy.
+4. **API adapter** — OpenAI file-search / Anthropic Files-based assistants:
+   real closed systems testable programmatically, within their ToS.
+5. **Transcript adapter** — a manual mode where a human runs the scenario
+   battery against a closed UI (NotebookLM, Copilot Notebooks), pastes
+   responses, and the harness handles everything from the judge onward. Slow,
+   but it is the *only* honest path to claims about closed products, and the
+   review app already has the UI bones for it.
+
+Results records gain a `system_id`, and the headline deliverable becomes a
+**comparison across systems on a fixed battery** — which resolves B8's
+arbitrary-absolute-threshold problem at the same time. This is the difference
+between "a prototype that simulates a RAG app" and "the harness you point at
+a RAG app."
+
+### C2. The scenario store is the durable community artifact — treat it like a dataset release
+
+The schema's `conflation_mechanism` and `distinguishing_signal` fields are
+the most original intellectual contribution in the repo: no existing
+over-refusal benchmark documents *why* each case fools classifiers and what
+signal separates it from real harm. That structure is what makes the dataset
+usable for guideline-writing and classifier improvement, not just scoring.
+To make it a community artifact:
+
+- **Version it like software:** semver on the scenario store; changelog;
+  releases. (B2's `scenario_store_version` feeds this.)
+- **License it explicitly:** e.g., CC-BY-4.0 for scenarios, Apache-2.0 for
+  code. Unlicensed data doesn't get reused.
+- **Contamination protection:** embed a canary GUID (BIG-bench convention) in
+  every scenario file so future model-training contamination is detectable,
+  and hold back a private split (the MLCommons AILuminate practice — see D6)
+  so headline numbers can't be gamed by training on the public set. This
+  matters more here than for most benchmarks: an over-refusal benchmark that
+  leaks into RLHF data stops measuring anything.
+- **Contribution pipeline:** an authoring guide (the conflation-mechanism
+  discipline is teachable), schema validation already in `smoke_test.yml`,
+  and a review checklist — this is how the store grows past what one author
+  can write, and how deferred domains (CRIS, EXTR) eventually get covered by
+  people with the right domain expertise.
+
+### C3. A standardized, machine-readable "RAG Refusal Report"
+
+`findings.md` is designed for the project's own iteration loop. For external
+value, define a fixed report card emitted per (system × battery-version):
+per-domain × tier table of `response_type` distributions,
+`system_refusal_rate_green` and `adversarial_fail_rate` with n and Wilson
+CIs, judge version + calibration status (κ, ECE, gate pass/fail), and the
+two-axis summary plotted as a point on the **refusal-calibration frontier**
+(fp on x, adversarial-fail on y). Publish the JSON schema for this card so
+third parties running the harness produce comparable artifacts — the
+HELM/model-card lesson: the *reporting standard* is what makes independent
+results composable into a literature.
+
+### C4. Taxonomy interoperability
+
+The nine-domain taxonomy is well-motivated but bespoke. Map each domain (and
+each RED reference category) to the MLCommons AILuminate hazard taxonomy
+(12 hazard categories; now the closest thing to an industry-standard hazard
+vocabulary) and, where applicable, AIR-Bench's regulation-derived categories.
+A simple crosswalk table in `taxonomy.md` lets anyone translate penumbra
+results into the vocabulary their org or regulator already uses — cheap to
+write, large interop payoff.
+
+### C5. Ship the judge harness as a separable artifact
+
+The calibrated-judge machinery (rubric blocks, swap augmentation, cascade,
+calibration gates, review app) is independently useful to anyone evaluating
+*anything* against a rubric — arguably more reusable than the RAG framing.
+Keeping `judge/` + `eval/` + `review_app/` cleanly importable (no scenario-
+store assumptions baked in) costs little now and creates a second adoption
+path for the project.
+
+### Interim summary 3 — generalization
+
+The architecture is one abstraction away from being the community framework
+the brief envisions: everything downstream of the proxy is already
+system-agnostic, so introducing a SUT adapter interface (fixture / prompt-sim
+/ local-RAG / API / human-transcript) converts "cannot draw conclusions about
+real products" from a permanent disclaimer into a per-adapter caveat, and
+makes cross-system comparison — not absolute thresholds — the headline
+output. The scenario store, with its conflation-mechanism documentation, is
+the durable artifact and should be versioned, licensed, canary-tagged, and
+opened to contribution with a private held-out split. A machine-readable
+report card and an AILuminate taxonomy crosswalk make independent results
+composable and legible to the broader T&S world.
+
+---
+
+## Part D — Integrating the trust & safety and ML literature
+
+The repo's citations (XSTest, OR-Bench, COVER, RagRefuse, SORRY-Bench,
+HarmBench, Wang et al., Jung et al.) are well-chosen. The gaps are below,
+ordered by how much they would change the design.
+
+### D1. Refusal detection: WildGuard and the three-way compliance taxonomy
+
+[WildGuard](https://proceedings.neurips.cc//paper_files/paper/2024/hash/0f69b4b96a46f284b726fbd70f74fb3b-Abstract-Datasets_and_Benchmarks_Track.html)
+(Han et al., NeurIPS 2024 Datasets & Benchmarks) is an open moderation model
+that jointly classifies prompt harmfulness, response harmfulness, and —
+critically for this project — **whether the response is a refusal**, with
+~25% better refusal detection than prior open tools. It directly fills the
+missing-refusal-detector gap (A3) and is a stronger Phase 2 screener
+candidate than the currently planned Llama Guard 3, which classifies harm
+categories but is not a refusal detector. Adopt XSTest/OR-Bench's three-way
+`full_compliance / partial_compliance / full_refusal` labelling as the
+`response_type` vocabulary so penumbra numbers are comparable to the
+chat-domain over-refusal literature.
+
+### D2. Grounded-refusal evaluation: RefusalBench's generative method
+
+[RefusalBench](https://arxiv.org/abs/2510.10390) (arXiv 2510.10390) evaluates
+*selective* refusal in grounded LMs by **programmatically perturbing
+documents** across defined uncertainty categories, including multi-document
+settings — and finds frontier models identify the correct *reason* for
+refusal <50% of the time in multi-doc RAG. Three direct adoptions:
+
+1. Its perturbation-based generation is a scalable complement to hand
+   authoring for Phase 4 — perturb a GREEN scenario's document, not its
+   query, to populate the A6 document factorial systematically.
+2. Its finding motivates adding a `refusal_reason` field to the judge output
+   (safety vs. grounding-policy vs. capability), which is exactly the
+   mechanism decomposition RQ1 needs (A1).
+3. It should be cited in the README's RQ1 novelty claim, which currently
+   says no grounded-refusal work uses structured comparisons — the claim
+   needs narrowing to the professional-domain/tier stratification, which
+   does remain unclaimed territory.
+
+### D3. Judge biases beyond position: the MT-Bench bias triad
+
+Swap augmentation handles position bias, but Zheng et al. (NeurIPS 2023,
+MT-Bench) established a triad: position bias, **verbosity bias** (longer
+outputs judged more favorably), and **self-enhancement bias** (judges
+preferring their own family's outputs — already mitigated by the cross-family
+requirement; the design should *cite this as the reason*, turning an
+engineering choice into a literature-grounded control). Verbosity bias is
+cheap to monitor: log proxy-output length and report the correlation between
+length and verdict within tier in `findings.md`. §10 item 6 already names
+length bias as unaddressed — this closes it for one line of pandas.
+
+### D4. Selective evaluation done properly: conformal calibration
+
+The cascade cites Cascaded Selective Evaluation (Jung et al.) but implements
+a simpler verbalized-confidence threshold the cited work specifically
+improves upon (B4). Two literature-grounded upgrades: derive judge confidence
+from **agreement across sampled runs** (self-consistency), and set λ by
+**conformal prediction** over the human-labelled calibration set, yielding a
+distribution-free guarantee on the auto-accepted error rate. On verbalized
+confidence specifically: Tian et al. (EMNLP 2023) and Xiong et al. (ICLR
+2024) document systematic overconfidence; reporting the judge's ECE by tier
+(A7) turns this from a design risk into an RQ2 finding.
+
+### D5. Measurement science: disagreement as signal, prevalence-robust agreement, IRT
+
+- **Human label variation** (Plank, EMNLP 2022; Gordon et al.'s jury
+  learning, CHI 2022): at the AMBER boundary, rater disagreement is often
+  legitimate value disagreement, not noise. The schema's `UNCERTAIN` label
+  gestures at this; the upgrade is to *retain* disagreeing labels rather
+  than force adjudication to a single `adjudicated_label`, and report
+  judge agreement against the label distribution. This reframes RQ2's
+  premise — at the boundary the right target may be matching the human
+  *distribution*, not a forced consensus.
+- **Agreement statistics:** PABAK / Gwet's AC1 alongside κ (A7);
+  Krippendorff's α when raters exceed two (Phase 3 domain experts).
+- **Item Response Theory:** fitting a simple IRT model over (scenario ×
+  rater/judge) outcomes yields per-scenario difficulty estimates — a
+  principled, non-circular operationalization of "proximity to the boundary"
+  for RQ2, and a quality filter for Phase 4 scenario scaling (flag items
+  with negative discrimination).
+
+### D6. T&S practice: standard taxonomies, private splits, and the injection gap
+
+- **MLCommons AILuminate** ([benchmark](https://mlcommons.org/benchmarks/ailuminate/),
+  [arXiv 2503.05731](https://arxiv.org/html/2503.05731v1)): beyond the C4
+  taxonomy crosswalk, two practices transfer directly — the
+  **public-practice / private-official split** for contamination resistance
+  (C2), and the use of an **ensemble evaluator** rather than a single judge
+  model, which is where the judge chain could evolve once calibration data
+  exists (ensemble disagreement is another non-verbalized confidence signal).
+- **Indirect prompt injection** (Greshake et al., 2023; OWASP LLM Top 10,
+  LLM01): the problem statement lists document-borne injection as a core
+  RAG failure mode, but no phase ever tests it. Either add an injection
+  scenario class in a later phase (documents containing instructions that
+  attempt to flip the assistant's refusal behaviour — *in both directions*:
+  jailbreak-via-document and induced-over-refusal-via-document, the latter
+  being a novel and safe-to-test angle highly aligned with this project's
+  thesis) or trim the problem statement to what the program will measure.
+- **NIST AI RMF / GenAI profile:** worth a one-paragraph mapping in the
+  README for T&S-practitioner legibility (measurement function, "manage"
+  gates), not a design change.
+
+### D7. Scaling scenario generation with curation
+
+OR-Bench's contribution is a *method* (LLM-generated seemingly-toxic prompts
+at scale, filtered by ensemble moderation) as much as a dataset; FalseReject
+(2025) extends this with context-rich over-refusal cases. For Phase 4, the
+defensible pipeline is literature-standard: generate candidates with these
+methods (plus D2's document perturbations), then require human curation with
+the conflation-mechanism documentation that makes penumbra scenarios
+distinctive. Generation scales; the schema's analytical fields are where
+human effort should concentrate.
+
+---
+
+## Closing note
+
+Sources consulted during this review:
+[RefusalBench](https://arxiv.org/abs/2510.10390) ·
+[Steering Over-refusals in RAG (RagRefuse)](https://arxiv.org/pdf/2510.10452) ·
+[COVER (ACL 2025 Findings)](https://aclanthology.org/2025.findings-acl.1243.pdf) ·
+[WildGuard (NeurIPS 2024)](https://proceedings.neurips.cc//paper_files/paper/2024/hash/0f69b4b96a46f284b726fbd70f74fb3b-Abstract-Datasets_and_Benchmarks_Track.html) ·
+[AILuminate v1.0 (arXiv 2503.05731)](https://arxiv.org/html/2503.05731v1) ·
+[AILuminate benchmark](https://mlcommons.org/benchmarks/ailuminate/) ·
+[AILuminate suite (GitHub)](https://github.com/mlcommons/ailuminate)
