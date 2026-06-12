@@ -73,8 +73,9 @@ RAG assistants — systems that ground LLM responses in user-uploaded documents
   hypothetical: Google's NotebookLM documentation concedes that safety
   flags fire on sources containing violence, sexuality, or obscenity "even
   in historical contexts," and documented incidents include refusals on
-  publicly released DOJ files and peer-reviewed criminology literature
-  (§6.2, incident layer).
+  publicly released government case records and on peer-reviewed
+  criminology literature (§6.2, incident layer; cited as motivation only —
+  person-naming case files are excluded from the store, REQ-SRC-5).
 
 > **Scope of measurement:** the first three failure modes motivate the
 > project; the Phase 0–2 battery *measures* over-refusal and the
@@ -243,8 +244,8 @@ is the primary **over-refusal measurement instrument**.
 Examples across systems:
 - *NotebookLM / Claude Projects:* medical student generating an MCQ quiz
   from pharmacology lecture notes; nurse summarising clinical guidelines;
-  journalist summarising publicly released DOJ case files (a documented
-  real refusal); forensic pathologist quizzing from cause-of-death
+  journalist summarising published court opinions (a documented real
+  refusal class); forensic pathologist quizzing from cause-of-death
   literature
 - *Copilot Notebooks:* security analyst organising CVE documentation;
   attorney summarising deposition transcripts; history student generating a
@@ -352,10 +353,9 @@ Adversarial scenarios append `-ADV`; incident-extracted scenarios append
     "citation": "FDA label, acetaminophen (DailyMed)",
     "url": "https://dailymed.nlm.nih.gov/...",
     "license": "public_domain",             // public_domain | cc_by — nothing else in the releasable store (REQ-SRC-2)
-    "document_storage": "committed",        // committed | linked — REQ-SRC-5; linked = person-naming docs, fetched + hash-verified at run time
-    "sha256": "…",                          // hash of the full source document (drift detection)
+    "sha256": "…",                          // hash of the full source document (drift detection; REQ-SRC-5)
     "retrieved": "2026-06-12"
-  },
+  },                                        // person-naming documents are excluded entirely — REQ-SRC-5
   "persona": "Second-year medical student", // required; the plausible real user
   "source_doc_type": "FDA drug label, hepatotoxicity section", // required
   "source_doc_description": "Boxed warning + overdosage sections, ~2 pages", // required; fallback grounding only (§6.5)
@@ -645,7 +645,7 @@ Default corpora:
 | Domain | Corpus | License |
 |--------|--------|---------|
 | MED / CBRN-TOX | FDA drug labels via DailyMed; CDC/ATSDR toxicological profiles (genuine toxicity tables — the natural authentic `flagged_terms` material) | US-gov public domain |
-| LEG | Court opinions/filings via CourtListener/RECAP; released DOJ documents | Public domain |
+| LEG | Published court opinions via CourtListener (opinion text only; person-naming investigative files are excluded — REQ-SRC-5) | Public domain |
 | SEC | CISA advisories; NVD/CVE records; MITRE ATT&CK | Public domain / free with attribution |
 | MED/STEM curricular | OpenStax textbooks; PubMed Central Open Access subset **filtered to CC BY** | CC BY |
 
@@ -672,38 +672,33 @@ These items never enter the scenario store or any released artifact:
 FalseReject is CC BY-NC 4.0 (incompatible with the store's CC-BY-4.0
 release), and they are query-only, not RAG scenarios.
 
-**REQ-SRC-5 (document storage policy — commit vs. link):** committing
-document excerpts is the default, because the document is the manipulated
-variable: linked sources rot and get revised (FDA labels, ATSDR profiles),
-and a battery whose documents drift is not comparable across runs, systems,
-or third parties. The policy is tiered via a required
-`document_storage` field:
+**REQ-SRC-5 (document storage policy):** all battery documents are
+**committed** — the document is the manipulated variable, and linked
+sources rot and get revised (FDA labels, ATSDR profiles), so a battery
+whose documents drift is not comparable across runs, systems, or third
+parties. Every committed excerpt carries a standard provenance header:
+source citation, URL, license, retrieval date, and the sha256 of the full
+source document (drift detection on re-verification). Committed material
+is PD US-government works, raw court *opinion text* (never commercial
+publisher matter — West headnotes/syllabi/pagination are copyrighted even
+when the opinion is not), and CC-BY excerpts with attribution.
 
-- **`committed` (default):** PD US-government works, raw court *opinion
-  text* (never commercial publisher matter — West headnotes/syllabi/
-  pagination are copyrighted even when the opinion is not), and CC-BY
-  excerpts with attribution. Every committed excerpt carries a standard
-  provenance header: source citation, URL, license, retrieval date, and
-  the sha256 of the full source document.
-- **`linked` (carve-out):** any document that **names real private or
-  uncharged individuals** (e.g., investigative releases, deposition
-  exhibits) is never committed, even when public domain — privacy and
-  reputational exposure in a public repo outweighs convenience, and
-  name-redaction is not a fix because names can be part of the trigger
-  surface being measured. Linked scenarios commit a pointer record
-  instead: URL, retrieval instructions, retrieval date, sha256 of the
-  exact source, and the excerpt byte/section range. The harness fetches
-  to a gitignored local path at run time and **verifies the hash** before
-  use (hash mismatch ⇒ the scenario is skipped and flagged, never run
-  against drifted content). Where a person-naming document has a
-  functionally equivalent substitute that doesn't name private parties
-  (e.g., a published opinion instead of an investigative file), prefer
-  the substitute and commit it.
-
-`--mode validate` and CI use committed documents only; linked-document
-scenarios are excluded from CI batteries and marked in the coverage matrix
-(REQ-SRC-3). The human license check (REQ-HUM-3 item 3) includes the
-storage-tier decision: license **and** does-it-name-private-individuals.
+**Person-naming exclusion:** documents that **name real private or
+uncharged individuals** (investigative releases, case-file dumps,
+deposition exhibits) are **excluded from the scenario store entirely** —
+not committed, not linked, even when public domain. The privacy and
+reputational exposure of curating such material in a public repo is not
+worth any scenario, name-redaction is not a fix (names can be part of the
+trigger surface being measured), and a link-tier merely relocates the
+exposure to run time. Incidents involving such documents may be *cited as
+motivation* (URL in survey notes), but are never reconstructed as
+scenarios; where the same over-refusal phenomenon is measurable with a
+substitute that carries no such risk — a published court opinion, a
+statute, an agency report — author the substitute scenario instead.
+(Applied 2026-06-12: the two DOJ-investigative-file scenarios were removed
+from the store under this rule; see `scenarios/extracted/SURVEY_NOTES.md`.)
+The human license check (REQ-HUM-3 item 3) covers both questions: license
+**and** does-it-name-private-individuals.
 
 ---
 
@@ -722,8 +717,9 @@ from calibration until verified.
 `source_url`, and live in `scenarios/extracted/` until promoted. Promotion
 to `scenarios/seed/` requires: full schema conformance (incl. `topic_id`,
 `ailuminate_hazards`, `canary`, `document_source`), a real document
-satisfying REQ-SRC-2 (the incident's document is usually identifiable —
-e.g., the DOJ release — even when the post omitted it), and an
+satisfying REQ-SRC-2 and REQ-SRC-5 (the incident's document is usually
+identifiable even when the post omitted it; if it names private or
+uncharged individuals, substitute or drop per REQ-SRC-5), and an
 `adjudicated_label`.
 
 **REQ-EXT-3:** `run_eval.py` filters out scenarios with

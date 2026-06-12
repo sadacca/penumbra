@@ -45,13 +45,13 @@ by the assistant for human spot-review.
 - [ ] 1–2 contested cases (`contested: true`, REQ-CON-1)
 - [ ] One **real PD/CC-BY document excerpt** per scenario (1–3 pp) in
       `scenarios/seed/documents/` with `document_source` citation + license
-      (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener/DOJ for LEG);
+      (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener opinions for LEG);
       synthetic only where no suitable source exists
-- [ ] **[H]** Verify document licenses + content appropriateness + storage
-      tier (~3 min each): license AND does-it-name-private-individuals
-      (REQ-SRC-5; person-naming docs are `linked`, never committed)
+- [ ] **[H]** Verify document licenses + content appropriateness (~3 min
+      each): license AND does-it-name-private-individuals (REQ-SRC-5;
+      person-naming docs are excluded entirely — substitute or drop)
 - [ ] Provenance headers (citation, URL, license, retrieval date, sha256)
-      on every committed excerpt; fetch-and-verify path for `linked` docs
+      on every committed excerpt
 - [ ] Coverage matrix generated and CI-checked (REQ-SRC-3)
 - [ ] `scenarios/risk_guidelines.md` — LEG + MED blocks only, keyed by
       tier × AILuminate hazard slug
