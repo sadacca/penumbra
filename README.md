@@ -80,17 +80,21 @@ pip install -r requirements.txt
 # Precompute judge prompt blocks (deterministic; no API keys needed)
 python llm_client.py --precompute
 
-# Run seed eval (no API keys required)
-python harness/run_eval.py --mode seed
+# Validate mode: schema checks, fixtures, refusal-detector rules, metrics and
+# report over committed judge-output fixtures — no API keys required (REQ-VAL-1)
+python harness/run_eval.py --mode validate
 
 # Launch review app
 streamlit run review_app/app.py
 ```
 
-For live mode (requires API keys in `.env`):
+Judged runs require a judge API key in `.env` and take real wall-clock time
+(Cerebras 5 RPM: roughly 15–30 min at Phase 0 scale, ~45+ min at Phase 1
+scale — see REQUIREMENTS_ADDENDUM.md §A4):
 ```bash
 cp .env.example .env   # fill in keys
-python harness/run_eval.py --mode live
+python harness/run_eval.py --mode seed   # fixture outputs, live judge
+python harness/run_eval.py --mode live   # prompt-sim adapter + live judge
 ```
 
 ---
@@ -144,3 +148,7 @@ analysis_plan.md    Pre-registered RQ1/RQ2 analyses
 ## Full specification
 
 [REQUIREMENTS.md](REQUIREMENTS.md) — complete requirements, architecture, component specs, metrics, and design decisions.
+
+[REQUIREMENTS_ADDENDUM.md](REQUIREMENTS_ADDENDUM.md) — **v3.1 delta (current):** illustration-first restructure — Phase 0 walking skeleton, transcript adapter pulled forward, fixture outcome design, key-free `--mode validate`, `doc_condition` as run parameter, contested-case class, human-hours budgets, gate contingencies. Where it conflicts with v3, the addendum wins.
+
+[plan_evaluation.md](plan_evaluation.md) — the assessment (findings F1–F17) that motivated v3.1.
