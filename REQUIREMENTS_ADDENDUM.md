@@ -219,6 +219,59 @@ detector are promoted **separately** (two provenance events, not one).
 Document the ≥16 GB RAM requirement and a hosted-inference fallback so the
 runs-anywhere property survives for low-RAM users.
 
+## A12. Scenario sourcing strategy (resolves plan_evaluation.md F18–F21; added 2026-06-12)
+
+Supersedes the synthetic-documents-by-default posture of §12 decision 16 and
+hardens the Reddit-collector deferral (decision 13) into a replacement.
+
+**REQ-SRC-1 (four-layer sourcing):** every scenario carries a
+`grounding_type` field:
+
+1. `incident` — reconstructed from a documented real-world over-refusal
+   report (journalism, vendor documentation, academic papers, public forum
+   posts), captured by **periodic manual sweeps** (the SURVEY_NOTES.md
+   method). No programmatic scraping at any phase; the Phase 3 collector
+   item is replaced by a quarterly manual sweep task. `prompt_source` URL
+   required.
+2. `curriculum` — prompt derived by instantiating a shared query template
+   over a subtopic of a public professional licensing/certification content
+   outline (USMLE/NBME, NCLEX, NCBE MBE, CompTIA Security+/OffSec, ACS).
+   The blueprint citation serves as the `classification_rationale` basis
+   and `distinguishing_signal`. This layer is the coverage engine: the
+   coverage matrix (REQ-SRC-3) is keyed to blueprint subtopics.
+3. `document_derived` — scenario built outward from a real openly-licensed
+   document (see REQ-SRC-2).
+4. `generated_curated` — LLM-generated (OR-Bench-style queries;
+   RefusalBench perturbation framework for document variants), always
+   human-curated with analytical fields filled by hand. Used for AMBER
+   counterparts, contested cases, factorial variants, and the **private
+   held-out split** (synthetic/perturbed by design, for contamination
+   resistance).
+
+**REQ-SRC-2 (real documents by default):** source documents are real
+public-domain or CC-BY materials, excerpted to 1–3 pp, with
+`document_source` (citation + license) recorded per scenario. Default
+corpora: DailyMed/FDA labels and CDC/ATSDR toxicological profiles (MED/TOX —
+ATSDR is the natural authentic `flagged_terms` material), CourtListener/
+RECAP opinions and released DOJ documents (LEG), CISA advisories + NVD/CVE
+records + MITRE ATT&CK (SEC), OpenStax and PMC Open Access **CC-BY-filtered**
+articles (MED/STEM). Synthetic documents are the exception, reserved for
+controlled factorial manipulations and the private split. Only PD/CC-BY
+material may enter the releasable store (Phase 4 is CC-BY-4.0); CC-BY-NC
+and ND materials are excluded.
+
+**REQ-SRC-3 (coverage matrix):** `smoke_test.yml` builds and validates a
+coverage matrix (domain × subdomain × tier × grounding_type, with counts)
+against per-phase minimums. Coverage is a CI artifact, not a judgment call.
+
+**REQ-SRC-4 (external validation items):** a small adapted sample from
+published chat-domain over-refusal sets (XSTest; FalseReject's 1.1k
+human-annotated test split) is kept as a **validation-only** pool to
+sanity-check the refusal detector and judge against published labels. These
+items never enter the scenario store or any released artifact: FalseReject
+is CC BY-NC 4.0, incompatible with the store's release license; they are
+also query-only and not RAG scenarios.
+
 ---
 
 ## Phase table (amended)

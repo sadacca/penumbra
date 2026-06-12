@@ -398,3 +398,118 @@ metric discipline, and calibration machinery survive every recommendation
 above intact. The decisive move is R1+R2: stop improving the documents,
 build the two-week skeleton, and let the first real battery — not a fourth
 review — drive the next revision.
+
+---
+
+## Part F — Test-data sourcing (added 2026-06-12, on request)
+
+**Question under review:** the plan's strategy for obtaining credible,
+grounded test data — prompts *and* documents — given one human, no time for
+human-derived data collection at scale, and a coverage requirement. The
+original instinct was web-scraped Reddit examples (now deferred to Phase 3).
+
+### F18 (High) — Reddit scraping cannot supply half the test data and is the wrong tool for the other half
+
+A penumbra scenario is a *(prompt, document)* pair. Reddit posts about
+over-refusal almost never include the uploaded document — users describe
+("my pharmacology notes," "academic papers on organised crime") but do not
+attach. So even a perfectly working collector delivers prompt-side
+hypotheses only; the document — the distinctly-RAG variable the v3 design
+correctly elevated (§6.12) — must be sourced elsewhere regardless. On the
+prompt side, the project's own survey already demonstrated the yield
+problem: programmatic Reddit indexing "proved unreliable," and one of five
+manually-found extractions is flagged low-confidence (source 403'd, quote
+recovered from a search snippet). Add the ToS/PII surface (§12 decision 13)
+and the sampling bias — what gets posted is what went viral, not what is
+representative, so *coverage* is structurally unobtainable from social
+signal — and the conclusion is that the Phase 3 deferral should harden into
+a **replacement**: a periodic manual incident sweep (the survey method,
+which worked) instead of a scraper (which didn't). Incidents are anchors,
+not the corpus.
+
+### F19 (High) — Synthetic documents are the wrong default: real public-domain documents are more credible, more triggering, and cheaper
+
+Decision 16 makes 1–3-page *synthetic* documents the norm. This has three
+costs. (1) **Authenticity:** over-refusal is triggered by real surface
+content — actual LD50 tables, actual violence in case law. A solo author
+writing "public-domain-style" synthetic toxicology will, consciously or
+not, sanitize; the instrument then under-triggers exactly where it should
+measure. (2) **Credibility:** "NotebookLM refuses on a real FDA drug label /
+a real published court opinion" is a finding a reader can verify; the same
+result on an authored pastiche invites the response "your fake document is
+weird." Google's own support FAQ concedes safety flags fire on sources
+containing violence/sexuality/obscenity "even in historical contexts" —
+real documents are precisely the class the vendor says trips the filter.
+(3) **Cost:** the largest single authoring line item in Phase 0/1 (~70–200
+pages) mostly evaporates. Every Phase 1 domain has an abundant
+public-domain or CC-BY corpus: FDA drug labels via DailyMed and CDC/ATSDR
+toxicological profiles (US-gov public domain; ATSDR profiles contain
+genuine toxicity tables — the natural `flagged_terms` condition); federal
+court opinions and filings via CourtListener/RECAP and released DOJ
+documents (public domain — and the project's strongest real incident is
+*already* about DOJ files); CISA advisories and NVD/CVE records (public
+domain) plus MITRE ATT&CK (free with attribution) for SEC; OpenStax
+textbooks and the PubMed Central Open Access subset (filterable to CC BY)
+for curricular MED/STEM material. Synthetic authoring should be reserved
+for what genuinely needs it: controlled factorial manipulations and the
+private held-out split (where contamination resistance matters).
+
+### F20 (Medium) — Coverage should come from professional curricula, not from invention or social signal
+
+The plan's GREEN/AMBER prompts are currently invented per domain, which
+reintroduces the author-idiosyncrasy confound the v3 `topic_id` pairing was
+built to control. There is a better generator that is fast, systematic, and
+*self-justifying*: professional licensing and certification **content
+outlines** — USMLE/NBME content outlines and NCLEX test plans (MED), the
+NCBE MBE subject-matter outline (LEG), CompTIA Security+/CySA+ and OffSec
+exam objectives (SEC), ACS examination guides (STEM/CHEM). These public
+documents enumerate, at subtopic granularity, what students of each
+profession legitimately study — including every "scary" topic penumbra
+cares about (opioid pharmacology, homicide elements, exploitation
+techniques, toxicity thresholds). Deriving prompts by instantiating query
+templates over blueprint subtopics gives: enumerable coverage (the matrix
+is the blueprint, auditable for gaps); a citable tier rationale ("GREEN
+because this subtopic appears on the USMLE content outline" is a
+`classification_rationale` that ends arguments — and doubles as the
+`distinguishing_signal`); and natural topic-matched pairing, since the
+AMBER counterpart is the same blueprint subtopic with the conflation
+dialed up. Known limits to state honestly: blueprints are US-centric, and
+template-derived prompts lose real-user phrasing diversity — which is what
+the incident layer (F18) and a small phrasing-perturbation set are for.
+
+### F21 (Low) — Existing benchmarks are validation assets, not battery content — and one has a license trap
+
+Chat-domain over-refusal datasets (XSTest, OR-Bench, SORRY-Bench,
+FalseReject) are query-only — no documents — so none can populate a RAG
+battery. But small adapted samples are valuable as **external validation**:
+known-label items to sanity-check the refusal detector and judge against
+the published literature's labels (the plan currently validates the judge
+only against its own labels). Two specifics: **FalseReject**
+(AmazonScience, 16k prompts, 1.1k human-annotated test set) is **CC BY-NC
+4.0** — usable for internal validation, but it must never be folded into
+the scenario store, which is slated for CC-BY-4.0 release (Phase 4); the
+licenses are incompatible. **RefusalBench** released its full perturbation
+framework and benchmarks (EACL 2026), which the Phase 4 generation plan
+already cites — worth adopting earlier in miniature for factorial document
+variants, since the framework exists and is exactly the controlled
+manipulation synthetic authoring was meant to provide.
+
+### R13 — Recommended sourcing approach (four layers)
+
+| Layer | Role | Source | Volume (P0/P1) |
+|-------|------|--------|----------------|
+| 1. Incident-anchored | Credibility anchors; real-user phrasing | Manual sweeps of journalism, vendor docs/FAQs, academic papers, forums (no scraper); reconstruct (prompt, document) with provenance URL | ~10–15 |
+| 2. Curriculum-derived | Systematic coverage; defensible tier labels | Query templates × licensing-exam content outlines (USMLE, NCBE, Security+, ACS…) | bulk of GREEN/AMBER pairs |
+| 3. Real open-licensed documents | The document half; authentic flagged content | DailyMed/FDA, ATSDR, CourtListener/DOJ, CISA/NVD, OpenStax, PMC-OA (CC BY only) — excerpted to 1–3 pp with citation + license recorded | one per scenario + shared pools |
+| 4. Generated + curated | AMBER counterparts, contested cases, factorial variants, private split | LLM generation + RefusalBench perturbation framework; human curation fills analytical fields | gap-filler |
+
+Schema deltas: `grounding_type` (`incident | curriculum | document_derived |
+generated_curated`), `prompt_source` and `document_source` (citation +
+license; license must be PD/CC-BY for anything in the releasable store).
+Plus a CI-checked coverage matrix (domain × subdomain × tier ×
+grounding_type) so "do we have coverage" is a build artifact, not a
+feeling. Estimated effort under this approach: ~30–45 min per scenario
+(blueprint subtopic → document excerpt → template instantiation →
+analytical fields) versus several hours per scenario under
+synthetic-document authoring — which is what makes Phase 0/1 feasible for
+one human.

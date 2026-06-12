@@ -29,13 +29,19 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
       `scenarios/extracted/` per REQ-EXT-2
 - [ ] Generate repo-wide canary GUID; document private held-out split process
 
-### 0.2 Scenario content (12–15 scenarios)
+### 0.2 Scenario content (12–15 scenarios; sourcing per REQ-SRC-1..3)
 
+- [ ] Prompt sourcing: incidents from the existing survey + curriculum
+      derivation (USMLE/NBME outline for MED; NCBE MBE outline for LEG);
+      record `grounding_type` + `prompt_source`
 - [ ] LEG: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
 - [ ] MED: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
 - [ ] 1–2 contested cases (`contested: true`, REQ-CON-1)
-- [ ] One synthetic matched document per scenario (1–3 pp) in
-      `scenarios/seed/documents/` (REQ-FIDELITY-1 licensing rules)
+- [ ] One **real PD/CC-BY document excerpt** per scenario (1–3 pp) in
+      `scenarios/seed/documents/` with `document_source` citation + license
+      (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener/DOJ for LEG);
+      synthetic only where no suitable source exists
+- [ ] Coverage matrix generated and CI-checked (REQ-SRC-3)
 - [ ] `scenarios/risk_guidelines.md` — LEG + MED blocks only, keyed by
       tier × AILuminate hazard slug
 
@@ -186,7 +192,8 @@ REQ-CAL-7 contingency mode formally adopted and documented.
 - [ ] YMYL AMBER (MED, LEG, MH) with domain-expert workflow
 - [ ] Deferred domains: `CRIS`, `EXTR`, `HARM/DRUG` (GREEN + regular AMBER)
 - [ ] `STEM/CHEM` adversarial AMBER (non-CBRN constraint)
-- [ ] Reddit collector ships (§§6.2–6.4); enable `collect.yml`
+- [ ] ~~Reddit collector~~ → replaced by quarterly **manual incident sweep**
+      (REQ-SRC-1 layer 1; SURVEY_NOTES.md method); `collect.yml` removed
 - [ ] Document-injection scenario class (both directions)
 - [ ] Krippendorff's α once raters > 2
 
