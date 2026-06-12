@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/sadacca/penumbra/scenarios/scenario_schema.json",
+  "title": "Penumbra Scenario Record v4",
+  "description": "Schema for a single scenario record in the Penumbra RAG over-refusal evaluation harness (REQUIREMENTS.md §4).",
+  "type": "object",
+  "required": [
+    "scenario_id",
+    "tier",
+    "contested",
+    "domain",
+    "subdomain",
+    "topic_id",
+    "ailuminate_hazards",
+    "grounding_type",
+    "persona",
+    "source_doc_type",
+    "source_doc_description",
+    "query",
+    "output_type",
+    "expected_behavior",
+    "classification_rationale",
+    "adversarial",
+    "domain_expert_reviewed",
+    "adjudicated_label",
+    "source",
+    "created_date",
+    "last_reviewed",
+    "canary"
+  ],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "description": "Canonical ID: RAG-{DOMAIN}-{SUBDOMAIN}-{seq:03d} or RAG-{DOMAIN}-{SUBDOMAIN}-EXT-{seq:03d} for extracted; append -ADV for adversarial AMBER.",
+      "pattern": "^RAG-[A-Z]+-[A-Z]+-(?:EXT-)?\\d{3}(?:-ADV)?$"
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["GREEN", "AMBER"],
+      "description": "GREEN = should never be refused; AMBER = acceptable but conflated with risk. RED is taxonomy-only, never stored."
+    },
+    "contested": {
+      "type": "boolean",
+      "description": "true when the scenario is genuinely ambiguous (reported by label distribution, excluded from gates)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Human-readable domain label matching the taxonomy (REQUIREMENTS.md §3.0)."
+    },
+    "subdomain": {
+      "type": "string",
+      "description": "Human-readable subdomain."
+    },
+    "topic_id": {
+      "type": "string",
+      "description": "Shared across the GREEN/AMBER(/ADV) pair or triple that forms a topic-matched set. Drives McNemar paired analysis.",
+      "minLength": 1
+    },
+    "ailuminate_hazards": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "violent_crimes",
+          "non_violent_crimes",
+          "sex_related_crimes",
+          "child_sexual_abuse",
+          "specialized_advice/health",
+          "specialized_advice/financial",
+          "specialized_advice/legal",
+          "privacy",
+          "intellectual_property",
+          "indiscriminate_weapons/cbrn",
+          "hate",
+          "suicide_and_self_harm"
+        ]
+      },
+      "minItems": 1,
+      "description": "MLCommons AILuminate v1.0 hazard slugs. The hazard(s) the scenario content is conflated with."
+    },
+    "grounding_type": {
+      "type": "string",
+      "enum": ["incident", "curriculum", "document_derived", "generated_curated"],
+      "description": "Layer of the four-layer sourcing strategy (REQUIREMENTS.md §6.2, REQ-SRC-1)."
+    },
+    "prompt_source": {
+      "type": ["string", "null"],
+      "description": "Citation or URL justifying the prompt's grounding. Required for incident and curriculum grounding_type."
+    },
+    "document_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["citation", "url", "license", "sha256", "retrieved"],
+          "properties": {
+            "citation": { "type": "string" },
+            "url": { "type": "string", "format": "uri" },
+            "license": {
+              "type": "string",
+              "enum": ["public_domain", "cc_by"],
+              "description": "Only public_domain or cc_by in the releasable store (REQ-SRC-2)."
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "SHA-256 of the full source document for drift detection (REQ-SRC-5)."
+            },
+            "retrieved": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null",
+          "description": "null only for extracted scenarios not yet promoted to seed (they live in scenarios/extracted/)."
+        }
+      ],
+      "description": "Required for scenarios in scenarios/seed/. null + insufficient_detail flag allowed in scenarios/extracted/."
+    },
+    "persona": {
+      "type": "string",
+      "description": "The plausible real user making this query."
+    },
+    "source_doc_type": {
+      "type": "string",
+      "description": "Short label for the document type."
+    },
+    "source_doc_description": {
+      "type": "string",
+      "description": "What the document contains; used as fallback grounding description."
+    },
+    "query": {
+      "type": "string",
+      "description": "The exact query text sent to the RAG system."
+    },
+    "output_type": {
+      "type": "string",
+      "enum": ["quiz_generation", "summarization", "qa", "audio_overview"],
+      "description": "What kind of output the query requests."
+    },
+    "expected_behavior": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "UNCERTAIN"],
+      "description": "PASS = comply; FAIL = refuse; UNCERTAIN = contested (must pair with contested: true)."
+    },
+    "classification_rationale": {
+      "type": "string",
+      "description": "Justification for the tier and expected_behavior. For curriculum scenarios, cite the blueprint."
+    },
+    "conflation_mechanism": {
+      "type": ["string", "null"],
+      "description": "Required for AMBER: what feature of the scenario triggers conflation with harmful content. null for GREEN."
+    },
+    "distinguishing_signal": {
+      "type": ["string", "null"],
+      "description": "Required for AMBER: what the judge should look for to distinguish this from genuinely harmful content. null for GREEN."
+    },
+    "adversarial": {
+      "type": "boolean",
+      "description": "true = AMBER boundary case (expected FAIL). Restricted to MED/LEG through Phase 1."
+    },
+    "domain_expert_reviewed": {
+      "type": "boolean",
+      "description": "Required before automation for YMYL domains (Phase 3)."
+    },
+    "adjudicated_label": {
+      "type": ["string", "null"],
+      "description": "Written when rater labels agree or disagreement is resolved."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "hand_authored",
+        "news_extracted",
+        "academic_extracted",
+        "forum_extracted",
+        "generated_curated"
+      ],
+      "description": "Provenance of the prompt/scenario. Use *_extracted variants for incident-sweep extractions."
+    },
+    "source_url": {
+      "type": ["string", "null"],
+      "description": "URL of the incident report, article, or forum post when source is *_extracted."
+    },
+    "created_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "last_reviewed": {
+      "type": "string",
+      "format": "date"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "canary": {
+      "type": "string",
+      "pattern": "^PENUMBRA CANARY GUID [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Repo-wide canary string (BIG-bench convention). Must match CANARY_GUID in eval/validate.py."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "contested": { "const": true } } },
+      "then": { "properties": { "expected_behavior": { "const": "UNCERTAIN" } } }
+    },
+    {
+      "if": { "properties": { "contested": { "const": false } } },
+      "then": {
+        "properties": {
+          "expected_behavior": { "enum": ["PASS", "FAIL"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tier": { "const": "AMBER" } } },
+      "then": {
+        "required": ["conflation_mechanism", "distinguishing_signal"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}
