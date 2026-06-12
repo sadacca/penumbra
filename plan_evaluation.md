@@ -240,4 +240,161 @@ small golden-value test suite (known inputs → hand-checked κ/CI values) plus
 the schema validator would cost a day and is worth more than several of the
 Phase 1 ceremony items.
 
-*(Parts C–E appended below as the assessment proceeds.)*
+---
+
+## Part C — The stepping stones: scaling-path shape and one-human feasibility
+
+### F12 (High) — The adapter that answers the headline question is scheduled last
+
+The project is pitched around NotebookLM-class applications, and its best
+asset today is *real* NotebookLM over-refusal incidents (the DOJ-documents
+case, the criminology case) already extracted into the seed store. The only
+honest path to a claim about NotebookLM — the **transcript adapter** — is
+deferred to Phase 3, behind a real-retrieval stack and vendor-API adapters in
+Phase 2. Yet the transcript adapter is by far the *cheapest* adapter to build:
+it is a JSON input format plus the existing judge pipeline; no API keys, no
+ToS review, no retrieval engineering. Its cost is human minutes per scenario —
+and at illustration scale (10–20 scenarios, one system) that cost is an
+afternoon. Running the battery's hardest 15 scenarios through actual
+NotebookLM by hand and producing the first real report card would be the
+single most compelling artifact this project can generate, and the plan
+postpones it ~3 phases for no stated reason. The ordering optimizes for
+*coverage of the adapter matrix*; the goal asks to optimize for *time to a
+real, illustrative result*. Swap it: transcript adapter in Phase 0/1,
+local-RAG and API adapters stay Phase 2.
+
+### F13 (Medium) — One human is the binding constraint, and the plan never budgets their hours
+
+The plan is meticulous about machine budgets (RPD tables, rate intervals,
+context limits) and silent about the only resource that is actually scarce.
+Phase 1 human-load, estimated from the plan's own numbers: author ~70
+scenarios with topic-pairing discipline and conflation/distinguishing-signal
+fields; author or curate ~70–200 pages of synthetic documents (F7 determines
+which); write ~70 outcome-designed fixtures (F6); blind-label the full seed
+set; recruit and onboard a second rater; adjudicate disagreements; clear a
+review queue that, at a 90%-coverage λ, escalates ≥10% of all live verdicts
+(≈120+ items per Phase 2 battery per system); and review every regression
+flip the CI alerts on. None of this appears in TASKS as time, only as
+checkboxes. A serious framework needs a *labeling-economics* statement —
+minutes per label, labels per battery, queue-depth ceilings, and what gets
+dropped when the human is the bottleneck — both because the one human needs
+it to survive Phase 1, and because "what does this cost in human review"
+is exactly what a practitioner evaluating the framework will ask. The
+review-queue ceiling should be a gate the same way κ is.
+
+### F14 (Medium) — Phase 2 entry is gated on thresholds the plan gives you no reason to believe are reachable, with no contingency
+
+Phase 2 entry requires judge–human κ ≥ 0.70 overall and ≥ 0.80 on adversarial
+AMBER. Published judge-agreement numbers the README itself cites for *clearly*
+harmful/safe content are κ 0.53–0.84; penumbra's whole thesis is that its
+cases are harder than those. It is entirely plausible Phase 1 ends with κ ≈
+0.55–0.65 — a *successful, publishable instrument finding* — and the project
+formally stalls, because no path exists except an unbounded
+rubric-iteration loop. The plan needs a stated contingency: either Phase 2
+proceeds with the cascade in human-heavy mode (λ set conservatively, larger
+escalation fraction), or gates are re-derived from human–human κ (the judge
+can't be expected to out-agree the humans), or the timebox triggers a
+descoped Phase 2. "Gates may fail; that is expected" appears in the exit
+criteria, but nothing says what happens *next* — and for a one-human project,
+an undefined "iterate until κ ≥ 0.70" is where momentum goes to die.
+
+### F15 (Medium) — The WildGuard cliff: Phase 2 begins with a hardware break and a big-bang component swap
+
+Phase 2's first item replaces both the regex screener *and* the rules+LLM
+refusal detector with locally-hosted WildGuard via `llama-cpp-python`
+(≥16 GB RAM). Two problems. First, it breaks the project's most attractive
+property — runs-anywhere-free-tier (Codespaces default machines don't meet
+it) — precisely at the moment the project wants other people to start running
+it. Second, it is a simultaneous swap of two calibrated components, after
+which every Phase 1 trend line breaks at once (the plan's own provenance
+discipline says so). The validation task ("matches or exceeds Phase 1
+implementations") is right but understated: this is a re-calibration event,
+not a drop-in. Gentler path: keep WildGuard as a *shadow* detector for one
+battery (log, don't gate), compare, then promote — and document a hosted
+fallback for low-RAM users.
+
+### F16 (Low) — Automation ceremony precedes anything to automate
+
+Four GitHub Actions workflows (including a monthly report cron and a
+committed-but-disabled collector workflow) are specified for a repo whose
+eval, in CI, would need secrets, ~24+ minutes of judge time (F5), and
+flip-alert logic with automatic re-runs — before a single battery has ever
+been run by hand. For the illustration stage, `smoke_test.yml` (schema +
+imports, key-free) earns its keep; the rest is maintenance surface that can
+arrive when there are results worth regressing. Same judgment applies to the
+five-page Streamlit app: the one page that is load-bearing for measurement
+integrity is the blinded labelling form; browser/inspector/queue pages are
+quality-of-life that can trail.
+
+### F17 (Medium) — Two assessment cycles, three spec versions, zero code: the planning loop is now the main schedule risk
+
+This is the meta-finding. The git history shows requirements → assessment →
+v3 requirements → this assessment, with the spec absorbing each review
+admirably — and the build not starting. The v3 documents are now *better than
+they need to be* for the next step, and materially ahead of any evidence:
+several of their most confident commitments (conformal λ behaviour at small
+n, judge-call wall-clock, fixture-based calibration dynamics, free-tier model
+availability in 2026) will be falsified or revised within the first week of
+real runs, whichever week that is. The correct reading of this report is
+therefore **not** "produce REQUIREMENTS v4." It is: freeze the spec, cut the
+walking skeleton (F2), and let the next document revision be driven by run
+artifacts instead of review artifacts.
+
+---
+
+## Part D — What the plan gets right (preserve through any descope)
+
+Credit where due; none of the findings above argue for abandoning these:
+
+1. **The SUT adapter spine (§6.5)** is exactly the right scaling architecture
+   — it is what makes "illustration → framework" a configuration gradient
+   rather than a rewrite. Every finding above works *within* it.
+2. **The two-axis metric discipline** (`system_refusal_rate_green` ×
+   `adversarial_fail_rate`, never reported alone) is the correct headline
+   framing for over-refusal work and is still rare in practice.
+3. **Measurement hygiene retrofits from the prior assessment** — blinded
+   labelling, metric split by what's actually measured, refusal-reason
+   decomposition, provenance hashes, disagreement retention — are genuinely
+   best-practice and are precisely the things worth *illustrating*.
+4. **The conflation-mechanism / distinguishing-signal fields** remain the
+   most original and teachable artifact in the repo.
+5. **The real-incident survey** (`scenarios/extracted/`) with its honest gap
+   analysis is the project's strongest empirical asset and the right seed for
+   an illustration grounded in reality rather than fully fictional data.
+6. **Honest-limitations discipline** (§10) and the content-risk exclusions
+   (§2) are mature and should not be relaxed in any descope.
+
+---
+
+## Part E — Recommendations and verdict
+
+### Recommendations, in execution order
+
+| # | Action | Resolves |
+|---|--------|----------|
+| R1 | **Freeze the spec.** No REQUIREMENTS v4. Changes below land as a short addendum + TASKS edits only. | F17 |
+| R2 | **Define Phase 0 (walking skeleton, ~2 weeks):** 1–2 domains with real-world signal (LEG, MED), ~10–15 scenarios conforming to the v3 schema, schema validator + golden-value metric tests first, fixture adapter + outcome-designed fixtures, single-prompt judge, blinded labels from rater_1, raw agreement + Wilson CIs, one report. Phase 0 exit = the worked-example doc (R3) is real. | F2, F9, F11 |
+| R3 | **Add the illustration deliverables as first-class tasks:** a worked example tracing one scenario end-to-end, a short "how to evaluate your RAG app for over-refusal" methodology doc, and a demo dataset whose fixtures make every plot non-trivial. | F1, F6 |
+| R4 | **Pull the transcript adapter into Phase 0/1** and run the hardest 15 scenarios through a real NotebookLM-class UI by hand; emit the first real report card. Defer local-RAG/API adapters as planned. | F12 |
+| R5 | **Specify fixture outcome design as a REQ** (stratified mix of full/partial compliance and refusal, with refusal reasons, good and bad outputs per tier). | F6 |
+| R6 | **Fix the key-free contradiction:** either drop the "no keys for seed eval" claim or add committed judge-output fixtures / a `--no-judge` validation mode; reconcile REQ-DEV-1 (5 min) with §8 (24 min) by scoping REQ-DEV-1 to the no-judge path. | F5 |
+| R7 | **Resolve the `doc_condition` data model** (recommend: run parameter, not scenario field; shared variant-document pool) before authoring at scale. | F7 |
+| R8 | **Add a human-hours budget and a review-queue ceiling** per phase, alongside the RPD tables; recompute battery wall-clock for the v3 design. | F8, F13 |
+| R9 | **Trim Phase 1:** 3 domains (LEG, MED, SEC), ~35–40 scenarios; defer CBRN/STEM/HARM-PH authoring to Phase 2+; defer regression/report workflows and the non-labelling Streamlit pages until after the first battery. | F3, F16 |
+| R10 | **Add a contested-case class:** a small explicitly-ambiguous subset (`expected_behavior: UNCERTAIN`) whose reported outputs are label distributions and escalation behaviour, not pass/fail — and a findings section that teaches how to read it. | F4 |
+| R11 | **Add gate contingencies** (κ shortfall → human-heavy cascade mode / gates re-derived from human–human ceiling / timeboxed descope) and tie conformal-λ validity to provenance hashes with forced recalibration. | F10, F14 |
+| R12 | **Stage the WildGuard migration as shadow-then-promote** and document a low-RAM fallback. | F15 |
+
+### Verdict
+
+As a *measurement design*, the v3 plan is strong — unusually so for a solo
+project, thanks to two disciplined review cycles. As a plan for **the stated
+goal**, it is misshapen in three specific ways: it has no simple-illustration
+stage (the goal's starting point), it schedules the one adapter that touches
+the goal's named system last (the goal's destination), and it budgets
+machines, not the single human (the goal's constraint). All three are
+schedule-and-ordering defects, not architecture defects — the adapter spine,
+metric discipline, and calibration machinery survive every recommendation
+above intact. The decisive move is R1+R2: stop improving the documents,
+build the two-week skeleton, and let the first real battery — not a fourth
+review — drive the next revision.
