@@ -31,7 +31,7 @@ Reddit collector deferred to Phase 3.
   - [ ] HARM/PH: ≥4 scenarios
 - [ ] Author seed regular AMBER scenarios (`scenarios/seed/amber.json`) — paired to GREEN via `topic_id`
   - [ ] MED: ≥5 scenarios
-  - [ ] LEG: ≥5 scenarios
+  - [ ] LEG: ≥5 scenarios (1 criminology case extracted; needs completion + 4 more)
   - [ ] SEC: ≥4 scenarios
   - [ ] STEM: ≥4 scenarios
   - [ ] CBRN: ≥3 scenarios
