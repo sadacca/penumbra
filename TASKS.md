@@ -9,25 +9,47 @@ detailed when each phase starts.
 
 ### Scenario content
 
-- [ ] Draft `scenarios/taxonomy.md` — GREEN/AMBER/RED taxonomy with examples per domain
-- [ ] Draft `scenarios/risk_guidelines.md` — stub rubric for 6 Phase 1 domains (MED, LEG, SEC, STEM, CBRN, HARM/PH); detail after smoke-test
+Approach: extraction-first, then hand-author to fill gaps.
+See `scenarios/extracted/SURVEY_NOTES.md` for gap analysis from the 2026-06-09 survey.
+
+#### Step 1 — Complete extracted scenario records (do first)
+- [x] Hand-complete `scenarios/extracted/survey_2026-06-09.json` — fill `query` and
+  `source_doc_description` fields for all 5 partial records; write `classification_rationale`
+  where missing; move records that pass review into `scenarios/seed/`
+  - 4 GREEN records → `scenarios/seed/green.json`
+  - 1 AMBER record → `scenarios/seed/amber.json`
+  - All `query` fields completed; `adjudicated_label` null pending calibration run
+- [ ] Add RED taxonomy examples from survey harm reports to `scenarios/taxonomy.md`
+  (EchoLeak/AgentFlayer prompt injection, Reddit Answers source laundering)
+
+#### Step 2 — Taxonomy and guidelines stubs (do before hand-authoring)
+- [ ] Draft `scenarios/taxonomy.md` — GREEN/AMBER/RED taxonomy with domain examples;
+  include real extracted cases for LEG and MED
+- [ ] Draft `scenarios/risk_guidelines.md` — stub rubric for 6 Phase 1 domains
+  (MED, LEG, SEC, STEM, CBRN, HARM/PH); detail after smoke-test
+
+#### Step 3 — Hand-author to fill gaps (extraction left these empty)
+
+Survey signal: **LEG and MED have real-world over-refusal evidence; SEC has one
+structural case; STEM, CBRN, HARM/PH have none.** Adversarial AMBER for all domains
+must be hand-authored (users never post publicly about cases that correctly fail).
+
 - [ ] Author seed GREEN scenarios (`scenarios/seed/green.json`)
-  - [ ] MED: ≥8 scenarios (PHARM, CLIN, PATH)
-  - [ ] LEG: ≥8 scenarios (PROC, CONT, CRIM)
-  - [ ] SEC: ≥6 scenarios (CVE, FORENSIC)
-  - [ ] STEM: ≥6 scenarios (CHEM, BIO, PHYS)
-  - [ ] CBRN: ≥4 scenarios (TOX, RAD)
-  - [ ] HARM/PH: ≥4 scenarios
+  - [ ] MED: ≥6 additional scenarios (PHARM, CLIN, PATH) — 2 extracted; need ~6 more
+  - [ ] LEG: ≥5 additional scenarios (PROC, CONT, CRIM) — 2 extracted; need ~5 more
+  - [ ] SEC: ≥6 scenarios (CVE, FORENSIC) — 1 structural case extracted; need ~6 fresh
+  - [ ] STEM: ≥6 scenarios (CHEM, BIO, PHYS) — fully hand-authored; no signal found
+  - [ ] CBRN: ≥4 scenarios (TOX, RAD) — fully hand-authored; no signal found
+  - [ ] HARM/PH: ≥4 scenarios — fully hand-authored; no signal found
 - [ ] Author seed regular AMBER scenarios (`scenarios/seed/amber.json`)
   - [ ] MED: ≥5 scenarios
-  - [ ] LEG: ≥5 scenarios
+  - [ ] LEG: ≥5 scenarios (1 criminology case extracted; needs completion + 4 more)
   - [ ] SEC: ≥4 scenarios
   - [ ] STEM: ≥4 scenarios
   - [ ] CBRN: ≥3 scenarios
   - [ ] HARM/PH: ≥3 scenarios
 - [ ] Author seed adversarial AMBER scenarios (MED + LEG only; append to `scenarios/seed/amber.json`)
   - [ ] MED: ≥5 adversarial scenarios (`adversarial: true`, `expected_behavior: FAIL`)
-  - [ ] LEG: ≥5 adversarial scenarios
 - [ ] Write proxy fixtures for all seed scenarios (`scenarios/seed/fixtures/{scenario_id}.json`)
 
 ### Infrastructure
