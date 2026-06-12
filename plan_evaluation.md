@@ -129,4 +129,115 @@ abstention as a valid outcome, escalation policy — is arguably the most
 instructive part of the whole exercise for a practitioner audience, and the
 plan has no authored quota, no metric, and no report section for it.
 
-*(Parts B–D appended below as the assessment proceeds.)*
+---
+
+## Part B — Internal consistency and technical findings
+
+These are defects *within* the plan as written — things that will surface as
+confusion or rework the week implementation starts.
+
+### F5 (High) — "Seed mode requires no API keys" is impossible as specified
+
+Three places assert key-free seed evaluation: the README quick start ("Run
+seed eval (no API keys required)"), §12 decision 9 ("No API keys required for
+seed eval, calibration smoke-test, or CI regression runs"), and G7. But seed
+mode replaces only the **proxy** call with fixtures; the pipeline still runs
+the **LLM judge** (`cerebras/zai-glm-4.7`) on every fixture that the regex
+screener doesn't auto-PASS — which is, by design, every AMBER scenario and any
+GREEN scenario with risk-signal surface content. A key-free seed run as
+specified would produce screener auto-PASSes and nothing else. Either seed
+eval needs keys (and the README/G7/decision-9 claims are wrong), or the plan
+needs a third artifact — committed judge-output fixtures or a `--no-judge`
+schema/plumbing check — to make the key-free claim true. Related contradiction:
+REQ-DEV-1 requires the full seed eval to finish in **under 5 minutes**, while
+§8's own arithmetic prices a seed-scale judge pass at **~24 minutes** (110+
+calls at Cerebras's 13s interval, before swap augmentation). Both cannot hold.
+This is the kind of inconsistency that matters disproportionately for an
+*illustration*: the very first command in the README is the demo.
+
+### F6 (High) — Fixture outcome design is unspecified, and calibration is degenerate without it
+
+TASKS says only "Write SUT output fixtures for all seed scenarios."
+REQ-HARNESS-2 describes fixtures as "hand-written known-good outputs." If
+fixtures are uniformly good, then: (a) the refusal detector has nothing to
+detect in the default/CI mode and is untested until live runs; (b) human
+labels on GREEN fixtures are ~all PASS, so judge–human κ on GREEN is
+undefined or degenerate (no label variance — the kappa paradox the plan
+worries about, in its most extreme form); (c) `adversarial_fail_rate` in
+fixture mode is meaningless unless some adversarial-AMBER fixtures are
+deliberately *bad* (complying) outputs; and (d) the illustration's plots and
+report cards are empty — a frontier plot with every point at the origin
+teaches nothing. The fixture set needs a **designed outcome mix** — full
+compliance, partial compliance, refusal (safety-, grounding-, and
+capability-reasoned), good and bad — stratified per tier, exactly because it
+is the judge-calibration instrument and the demo dataset. This is a one-line
+omission in the plan with project-wide consequences; it should be a REQ with
+target proportions.
+
+### F7 (Medium) — `doc_condition` is simultaneously a scenario attribute and an experimental manipulation
+
+§4 makes `doc_condition` a **required field of the scenario record**; §6.12
+says each query "is run under three `doc_condition` values." Those are two
+different data models: either the factorial multiplies the scenario store ×3
+(and `scenario_id` needs a condition axis, and fixtures — keyed by bare
+`scenario_id` — need one fixture per condition), or the condition is a run
+parameter and does not belong in the scenario schema at all. The plan also
+never says whether `mismatched_benign`/`flagged_terms` document variants are
+authored per scenario (≈140 extra documents) or drawn from a shared pool.
+Pick one model before authoring 70 scenarios against the wrong one.
+
+### F8 (Medium) — The cost model was never recomputed for the v3 design
+
+§8's volume table still prices the pre-v3 battery (~200 proxy + ~200 judge
+calls/run). The v3 spec it sits inside requires k≥3 repeats (REQ-HARNESS-4),
+m=3 consistency sampling on AMBER (§6.6.3), and — in the Phase 2 "standard
+live battery" — the ×3 document factorial. At Phase 1 exit scale (≈70
+scenarios), one live battery is ≈630 proxy calls and ≈1,200+ judge calls; at
+Cerebras's 13-second interval that is **~4.5 hours of judge time per battery
+per system**, and the headline Phase 2 deliverable is a *cross-system*
+comparison (×N systems). The free-tier RPD budgets survive; the wall-clock
+and the single human's attention do not. The plan should state battery
+wall-clock per adapter and per phase the same way it states RPD budgets —
+this is the number that actually constrains a one-person operation.
+
+### F9 (Medium) — The committed scenario data already violates the committed schema
+
+The four scenarios in `scenarios/seed/` predate v3 and lack every v3-required
+field: `topic_id`, `ailuminate_hazards`, `doc_condition`, `canary`
+(REQ-TAX-1, §4). Their `source` values (`news_extracted`,
+`academic_extracted`) are not in the §4 enum (`hand_authored |
+reddit_extracted | forum_extracted`). And extracted-provenance scenarios sit
+in `seed/` although REQ-EXT-2 routes extracted scenarios to
+`scenarios/extracted/`. None of this is individually serious — but it is the
+third schema version with zero lines of validation code, and the drift has
+already begun at n=4. It is direct evidence for building the schema validator
+*first* (it is also the cheapest task in the repo) rather than after 70
+scenarios exist.
+
+### F10 (Medium) — Conformal λ is presented as a guarantee it cannot deliver at Phase 1 n, and its staleness policy is missing
+
+REQ-CAS-1 has `calibrate.py` write λ "and its coverage-guarantee statement" from
+a calibration set that is, at Phase 1, ~50–70 items (≥15 AMBER). A conformal
+bound at that n is real but loose, and per-tier λ (which the cascade
+implicitly needs — AMBER is where escalation matters) is infeasible. More
+importantly: conformal validity assumes exchangeability with the calibration
+distribution, and the plan's own provenance discipline (REQ-HARNESS-1, §7.2)
+acknowledges that judge-prompt and rubric changes break comparability — yet
+**no requirement invalidates or forces recalibration of λ when
+`judge_prompt_hash` or `guideline_block_hash` changes**. As written, a rubric
+tweak silently keeps gating on a λ calibrated against a judge that no longer
+exists. For the illustration goal this is fine to *demonstrate as workflow*;
+the documents should stop short of selling the Phase 1 λ as an operative
+guarantee, and should tie λ validity to the provenance hashes.
+
+### F11 (Low) — `pytest` is a dependency; testing appears nowhere in 135 tasks
+
+The statistics layer (Wilson, McNemar, bootstrap CIs, κ/AC1, ECE, conformal
+λ) is precisely where silent implementation bugs destroy the project's
+credibility — a harness that preaches measurement discipline cannot ship an
+untested `metrics.py`. There are no test-authoring tasks in any phase. A
+small golden-value test suite (known inputs → hand-checked κ/CI values) plus
+the schema validator would cost a day and is worth more than several of the
+Phase 1 ceremony items.
+
+*(Parts C–E appended below as the assessment proceeds.)*
