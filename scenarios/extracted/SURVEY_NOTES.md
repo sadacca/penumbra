@@ -9,11 +9,17 @@ Reddit thread indexing via web search proved unreliable; results are from second
 
 | Scenario ID | Domain | Signal strength | Source type |
 |-------------|--------|----------------|-------------|
-| RAG-LEG-CRIM-EXT-001 | LEG/CRIM | Strong | Journalism (named incident, confirmed by Google restoration) — **excluded from seed**: source doc references CSAM charges; inherent risk even as GREEN |
-| RAG-LEG-PROC-EXT-001 | LEG/PROC | Strong | Journalism (explicit test with comparison tools) |
 | RAG-MED-CLIN-EXT-001 | MED/CLIN | Moderate | Academic paper (arXiv:2505.01955, Nature) |
 | RAG-SEC-CVE-EXT-001 | SEC/CVE | Moderate | Community forum (Cloudflare) |
 | RAG-LEG-CRIM-EXT-002 | LEG/CRIM | Weak | Substack (source returned 403, quote from snippet) |
+
+> **Removed 2026-06-12 (REQ-SRC-5):** two DOJ-investigative-file-derived
+> scenarios (RAG-LEG-CRIM-EXT-001, RAG-LEG-PROC-EXT-001) were removed
+> entirely. Source documents name real private/uncharged individuals (one
+> also referenced CSAM charges); that document class is excluded from the
+> store — not committed, not linked. The incident class (refusals on public
+> case records) remains documented motivation; LEG scenarios are built on
+> published court opinions instead.
 
 Google's own support FAQ explicitly confirms safety-flag over-refusal on source material
 containing violence, sexuality, or obscenity "even in historical contexts":
