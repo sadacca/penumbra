@@ -7,10 +7,15 @@ run artifacts, not further review.
 
 ---
 
-## Phase 0 — Walking skeleton + illustration (~2 weeks; LEG + MED only)
+## Phase 0 — Walking skeleton + illustration (~2 weeks elapsed, ~8 human-hours; LEG + MED only)
 
-Build order below is normative (REQUIREMENTS §13 Phase 0). No cascade, no conformal λ, no swap
-augmentation, no second rater, no prompt-sim, no factorial in this phase.
+Build order below is normative (REQUIREMENTS §13 Phase 0). No cascade, no
+conformal λ, no swap augmentation, no second rater, no prompt-sim, no
+factorial in this phase. Division of labour per REQ-HUM-3: the assistant
+drafts everything (scenarios, excerpts, fixtures, run sheets, docs, code);
+the human reviews, blind-labels, operates the transcript battery, and
+decides. Tasks marked **[H]** are the human's; everything else is drafted
+by the assistant for human spot-review.
 
 ### 0.1 Validation first
 
@@ -31,9 +36,10 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 
 ### 0.2 Scenario content (12–15 scenarios; sourcing per REQ-SRC-1..3)
 
-- [ ] Prompt sourcing: incidents from the existing survey + curriculum
+- [ ] Draft prompts: incidents from the existing survey + curriculum
       derivation (USMLE/NBME outline for MED; NCBE MBE outline for LEG);
       record `grounding_type` + `prompt_source`
+- [ ] **[H]** Review drafted scenarios + sign off tiers (~5 min each)
 - [ ] LEG: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
 - [ ] MED: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
 - [ ] 1–2 contested cases (`contested: true`, REQ-CON-1)
@@ -41,6 +47,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
       `scenarios/seed/documents/` with `document_source` citation + license
       (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener/DOJ for LEG);
       synthetic only where no suitable source exists
+- [ ] **[H]** Verify document licenses + content appropriateness (~3 min each)
 - [ ] Coverage matrix generated and CI-checked (REQ-SRC-3)
 - [ ] `scenarios/risk_guidelines.md` — LEG + MED blocks only, keyed by
       tier × AILuminate hazard slug
@@ -49,7 +56,9 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 
 - [ ] `scenarios/seed/fixtures/{scenario_id}.json` with the stratified
       outcome mix from REQ-FIX-1 (incl. refusal-reason variety and *bad*
-      adversarial outputs)
+      adversarial outputs) — assistant-drafted; **the human does not read
+      these before blind-labelling them** (REQ-HUM-3 blinding order;
+      labelling doubles as fixture QA)
 - [ ] `scenarios/seed/fixtures/MANIFEST.json` — declared mix; validated in CI
 - [ ] `scenarios/seed/judge_fixtures/` — committed judge outputs frozen from
       the first real judged run (enables `--mode validate`, REQ-VAL-1)
@@ -76,15 +85,24 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 - [ ] `reports/generate_report.py` v0 — response-type distribution,
       over-refusal table, frontier point, contested-case section
 - [ ] `reports/report_card_schema.json` v0 + first card emission
+- [ ] `review_app/app.py` + `review_app/pages/00_dashboard.py` — read-only
+      prep + results visualization (REQ-APP-10): coverage matrix, manifest
+      mix declared vs. actual, labelling progress; post-run: response-type
+      distribution, over-refusal table with Wilson CI bars, frontier per
+      system_id, contested profile; graceful empty states (REQ-DEV-2)
 
 ### 0.5 Labels + first real run
 
-- [ ] Blinded labelling form (single Streamlit page **or** CLI; REQ-APP-4
-      blinding rules in full; 1–5 rater confidence; writes `labels.ndjson`)
-- [ ] Rater_1 blind-labels all Phase 0 fixtures; raw agreement + κ reported
-      (advisory)
-- [ ] Manual transcript battery: run the 10–15 hardest scenarios through a
-      real NotebookLM-class UI; emit **first real report card**
+- [ ] Blinded labelling form (`01_human_labels.py` or CLI; REQ-APP-4
+      blinding rules in full; 1–5 rater confidence; `fixture_broken` flag
+      per REQ-HUM-3; writes `labels.ndjson`)
+- [ ] Assistant-prepared transcript run sheet (copy-paste-ready queries +
+      paste template + checklist) to minimize human minutes per scenario
+- [ ] **[H]** Rater_1 blind-labels all Phase 0 fixtures (~1.5 h); raw
+      agreement + κ reported (advisory); `fixture_broken` items replaced
+- [ ] **[H]** Manual transcript battery: run the 10–15 hardest scenarios
+      through a real NotebookLM-class UI (~2 h); emit **first real report
+      card**
 
 ### 0.6 Illustration deliverables (REQ-ILL-1)
 
@@ -102,7 +120,11 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 - [ ] Judged fixture run completes; all rates carry n + Wilson CI
 - [ ] All Phase 0 fixtures blind-labelled by rater_1
 - [ ] First transcript-adapter report card emitted and schema-valid
+- [ ] Dashboard renders coverage matrix, manifest mix, and frontier from
+      real run data; graceful on empty data (REQ-APP-10)
 - [ ] Worked example + methodology docs accurate against running code
+- [ ] Total human time logged ≤ ~8 h (REQ-HUM-1); overrun is a finding, not
+      a failure — record where it went
 
 ---
 
@@ -149,8 +171,9 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
       taxonomy-coherence only
 
 ### App + reports
-- [ ] Review app: blinded labelling page (from Phase 0) + judge inspector
-      (REQ-APP-2/3); other pages deferred to Phase 2 (§6.9)
+- [ ] Review app: dashboard + blinded labelling page (from Phase 0) +
+      judge inspector (REQ-APP-2/3); browser/calibration/queue pages
+      deferred to Phase 2 (§6.9)
 - [ ] `generate_report.py`: refusal_reason breakdown, verbosity-bias check
       (REQ-JUDGE-7), trend-integrity guard, full report card (§7.3)
 

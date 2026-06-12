@@ -34,7 +34,11 @@
 > - **Sourcing strategy** (§6.2): incident sweeps + curriculum-derived
 >   prompts + real PD/CC-BY documents + curated generation. The Reddit
 >   collector is **removed**, not deferred
-> - **Human-hours budgets and a review-queue ceiling** (§6.4, REQ-HUM-1/2)
+> - **Human-hours budgets, a review-queue ceiling, and a division-of-labour
+>   rule** — the assistant drafts, the human reviews/labels/operates;
+>   Phase 0 human cost ≈ 8 h (§6.4, REQ-HUM-1/2/3)
+> - **Read-only dashboard page in Phase 0** visualizing preparation and
+>   evaluation state (§6.9, REQ-APP-10)
 > - **Gate contingencies** (REQ-CAL-7) and **λ provenance binding**
 >   (REQ-CAS-3)
 > - **Phase 1 trimmed** to LEG/MED/SEC; STEM/CBRN/HARM-PH and the
@@ -456,10 +460,11 @@ penumbra/
 ├── review_app/                    # Streamlit human-in-the-loop interface
 │   ├── app.py
 │   ├── pages/
+│   │   ├── 00_dashboard.py        # P0: read-only prep + results visualization (REQ-APP-10)
 │   │   ├── 01_human_labels.py     # P0/P1: BLINDED labelling form (REQ-APP-4)
 │   │   ├── 02_judge_inspector.py  # P1: side-by-side with swap detail
 │   │   ├── 03_scenario_browser.py # P2
-│   │   ├── 04_calibration.py      # P2: κ/AC1/ECE dashboard + gate badges
+│   │   ├── 04_calibration.py      # P2: κ/AC1/ECE deep-dive + gate badges
 │   │   └── 05_review_queue.py     # P2
 │   └── data_utils.py              # Flat-file loaders (pandas read_json lines=True)
 ├── reports/
@@ -718,19 +723,27 @@ and adopt it.
 #### Human budget
 
 **REQ-HUM-1:** each phase states a human-hours budget alongside the machine
-budgets (§8): scenario sourcing/authoring, fixture writing, labelling
-(minutes-per-label assumption stated), adjudication, transcript-battery
-operation, and queue review. Initial estimates:
+budgets (§8). The budget assumes the REQ-HUM-3 division of labour: the
+human **reviews, labels, operates, and decides**; the AI assistant (Claude,
+in-session) **drafts everything** — scenarios from blueprints and
+incidents, document excerpt selection, fixtures to the manifest mix,
+transcript run sheets, teaching docs, and all code. Review of a drafted
+artifact costs minutes; authoring it costs an hour.
 
-| Activity | Phase 0 | Phase 1 (incremental) |
-|----------|---------|----------------------|
-| Scenario sourcing/authoring (~30–45 min each under §6.2) | ~10 h (12–15 scenarios) | ~18 h (+25 scenarios) |
-| Fixture writing (REQ-FIX-1, ~20 min each) | ~5 h | ~8 h |
-| Blinded labelling (~3 min/item) | ~1 h | ~4 h (full set + adjudication) |
-| Transcript battery (manual UI runs) | ~3 h | ~3 h per system refresh |
-| Illustration docs | ~6 h | ~2 h (refresh) |
-| Second-rater recruitment + their ~50 items | — | their ~3 h + ~2 h coordination |
-| **Total** | **~25–30 h** | **~40 h** |
+| Activity | Human role | Phase 0 | Phase 1 (incremental) |
+|----------|-----------|---------|----------------------|
+| Scenario drafting (assistant, per §6.2) | review + tier sign-off (~5 min each) | ~1.5 h | ~2.5 h |
+| Document excerpts (assistant locates PD/CC-BY sources) | license + content verification (~3 min each) | ~1 h | ~1.5 h |
+| Fixture drafting (assistant, to MANIFEST mix) | **none before labelling** (REQ-HUM-3 blinding order) | 0 h | 0 h |
+| Blinded labelling (~3 min/item; doubles as fixture QA) | label | ~1.5 h | ~4 h |
+| Transcript battery (closed UI; assistant-prepared run sheet) | operate | ~2 h | ~3 h per system |
+| Illustration docs (assistant drafts) | review | ~1 h | ~1 h |
+| Decisions, adjudication, coordination | decide | ~1 h | ~3 h (incl. second-rater coordination) |
+| **Total** | | **~8 h** | **~15 h** (+ the second rater's ~3 h) |
+
+The transcript battery and blind labelling are the two activities no one
+else can do; they are protected — when time runs short, drafting review is
+sampled (spot-check), never the labelling or the battery.
 
 **REQ-HUM-2 (review-queue ceiling):** the cascade's human review queue has
 a per-battery ceiling (initial: **40 items**). If escalations exceed it,
@@ -738,6 +751,20 @@ the run completes but the report card is marked `queue_overflow: true`;
 documented responses, in order: raise the λ coverage target, shrink the
 battery, or recruit review capacity. A growing unreviewed queue is a failed
 gate, not background debt.
+
+**REQ-HUM-3 (division of labour + blinding order):** human time is reserved
+for: (1) blind labelling, (2) closed-UI battery operation, (3)
+license/content sign-off on real documents, (4) tier adjudication and
+disagreement resolution, (5) final review of the teaching docs. All
+drafting is delegated to the assistant. **Blinding order rule:** the human
+must **not** read drafted fixtures before blind-labelling them — the
+blind-labelling pass doubles as fixture QA (the labelling form includes a
+`fixture_broken` flag that discards malformed items from calibration).
+This converts a cost into a control: fixtures the labeller has never seen
+strengthen the single-author circularity mitigation (§10.2) beyond what
+frozen live outputs alone provide. Scenario review happens *before*
+fixtures are drafted, so scenario-level expectations seen at review time
+do not expose fixture content.
 
 ---
 
@@ -1109,16 +1136,43 @@ inspection, calibration monitoring, and queue clearance. Runs locally or in
 Codespaces; no authentication. All reads/writes go through
 `review_app/data_utils.py` (pandas over NDJSON).
 
-**Phased delivery (v4):** the two measurement-integrity surfaces ship
-first — the **blinded labelling form** (P0/P1) and the **judge inspector**
-(P1). The browser, calibration dashboard, and review-queue pages ship in
+**Phased delivery (v4):** Phase 0 ships the **dashboard** (the visible
+face of the illustration) and the **blinded labelling form** (the
+measurement-integrity surface); Phase 1 adds the **judge inspector**. The
+scenario browser, calibration dashboard, and review-queue pages ship in
 P2; until then `findings.md` and `calibrate.py` output cover their roles.
+
+#### Page: Dashboard (`00_dashboard.py`; P0)
+
+Read-only visualization of **preparation** and **evaluation** state — the
+app a visitor opens to see what the harness is and what it found. Reuses
+`eval/validate.py` and `eval/metrics.py` outputs; computes nothing new.
+
+- **Preparation view (works pre-run):** store composition and the
+  REQ-SRC-3 coverage matrix rendered (domain × tier × grounding_type, with
+  per-phase minimums and gaps highlighted); fixture manifest mix —
+  declared (REQ-FIX-1) vs. actual; labelling progress per rater
+- **Evaluation view (post-run):** response-type distribution by domain ×
+  tier (× doc_condition where present); over-refusal table with n and
+  Wilson CI bars; the **refusal-calibration frontier** with one point per
+  `system_id` (the headline chart); contested-case profile (§3.4);
+  realized battery wall-clock vs. the §8 estimate
+- **Run selector:** per `run_id`, with provenance hashes displayed;
+  cross-run comparison only between runs with matching hashes (§7.2 trend
+  integrity)
+
+**REQ-APP-10:** the dashboard is read-only; renders gracefully with empty
+or missing data files (REQ-DEV-2); and displays calibration status
+prominently — including the advisory-mode banner whenever no gate JSON
+exists (REQ-CAL-3) or λ provenance is stale (REQ-CAS-3).
 
 #### Page: Human Labels (`01_human_labels.py`; P0)
 
 - Queue: scenarios/results pending labels for the current `RATER_ID`
 - Form: blinded scenario view (REQ-APP-4); PASS / FAIL / UNCERTAIN; 1–5
-  rater confidence; optional note; immediate write on confirm
+  rater confidence; a `fixture_broken` flag (REQ-HUM-3 — labelling doubles
+  as fixture QA; flagged items are excluded from calibration); optional
+  note; immediate write on confirm
 - Progress tracker
 
 **REQ-APP-4 (blinded labelling):** the form displays what the judge sees —
@@ -1408,9 +1462,12 @@ risk.
 
 ### Human budget
 
-See REQ-HUM-1 (§6.4) for the Phase 0/1 table (~25–30 h / ~40 h) and
-REQ-HUM-2 for the review-queue ceiling. The transcript battery costs
-~10–15 human-minutes per scenario per system.
+See REQ-HUM-1 (§6.4) for the Phase 0/1 table (~8 h / ~15 h under the
+REQ-HUM-3 division of labour: the assistant drafts, the human reviews,
+labels, operates, and decides) and REQ-HUM-2 for the review-queue ceiling.
+The transcript battery costs ~10–15 human-minutes per scenario per system
+and, with blind labelling, is one of the two activities that cannot be
+delegated.
 
 ### Provider notes
 
@@ -1472,8 +1529,9 @@ Documented in the README, not papered over:
    circularity (one person authors scenarios, fixtures, rubric, and
    primary labels) is mitigated by blinding (REQ-CAL-4/REQ-APP-4), the
    second rater, curriculum-anchored rationales (REQ-SRC-1 — the blueprint,
-   not the author, justifies the tier), and frozen live outputs replacing
-   hand-written fixtures over time.
+   not the author, justifies the tier), assistant-drafted fixtures that the
+   labeller first sees blind (REQ-HUM-3 blinding order), and frozen live
+   outputs replacing hand-written fixtures over time.
 
 3. **Incident reports are hypothesis generation, not ground truth.** A
    reported refusal becomes a confirmed case only after the scenario is
@@ -1611,7 +1669,15 @@ hosted-inference fallback is documented for low-RAM users — §13 P2).
     unbounded rubric-iteration loop.
 22. **Illustration deliverables** → REQ-ILL-1 (v4): the worked example and
     methodology guide are first-class, CI-staleness-checked artifacts —
-    the project's adoption surface.
+    the project's adoption surface. The Phase 0 dashboard (REQ-APP-10) is
+    the in-app counterpart: preparation and evaluation state visualized
+    from the first run.
+23. **Division of labour** → REQ-HUM-3 (v4): the assistant drafts all
+    content and code; the human reviews, blind-labels, operates the
+    transcript battery, and adjudicates (~8 h in Phase 0). The blinding
+    order rule — the labeller never reads drafted fixtures before
+    blind-labelling them — turns delegation into an additional
+    circularity control (§10.2).
 
 ---
 
@@ -1620,26 +1686,35 @@ hosted-inference fallback is documented for low-RAM users — §13 P2).
 Entry/exit criteria are duplicated (deliberately) in TASKS.md, which is the
 execution view of this roadmap.
 
-### Phase 0 — Walking skeleton + illustration (~2 weeks)
+### Phase 0 — Walking skeleton + illustration (~2 weeks elapsed; ~8 human-hours)
 
 **Scope:** LEG + MED; 12–15 scenarios (full v4 schema); build order:
 validator + golden-value tests → outcome-designed fixtures (REQ-FIX-1) →
 single-prompt judge (no cascade/swap) → blinded labelling → metrics with
 n + Wilson CIs → report. Transcript adapter v0 (REQ-TRN-1) + one manual
 battery against a real NotebookLM-class UI → first real report card.
-Illustration docs (REQ-ILL-1). `smoke_test.yml`.
+**Dashboard page** (REQ-APP-10) + blinded labelling form. Illustration
+docs (REQ-ILL-1). `smoke_test.yml`.
+
+**Division of labour (REQ-HUM-3):** the assistant drafts all scenarios,
+document excerpts, fixtures, run sheets, teaching docs, and code; the
+human reviews scenarios and licenses, blind-labels (without pre-reading
+fixtures — the blinding order rule), runs the transcript battery, and
+makes adjudication decisions. Phase 0 human cost target: **~8 hours**.
 
 **Explicitly out:** cascade, conformal λ, swap augmentation, consistency
 sampling, second human rater, prompt-sim, factorial, regression/report
-workflows, multi-page review app.
+workflows, review-app pages beyond the dashboard and labelling form.
 
 **Exit criteria:**
 - Validator + golden-value tests pass in CI on a clean checkout
 - `run_eval.py --mode validate` runs key-free in <5 min (REQ-DEV-1)
 - Judged fixture run completes; every rate carries n + Wilson CI
 - All Phase 0 fixtures blind-labelled by rater_1 (raw agreement + κ
-  reported, advisory)
+  reported, advisory; `fixture_broken` items excluded and replaced)
 - First transcript-adapter report card emitted and schema-valid
+- Dashboard renders the coverage matrix, manifest mix, and the frontier
+  from real run data — and renders gracefully on empty data (REQ-APP-10)
 - `docs/worked_example.md` + `docs/methodology.md` accurate against
   running code
 

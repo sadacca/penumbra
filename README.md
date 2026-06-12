@@ -49,7 +49,7 @@ A system that refuses everything is as broken as one that allows everything. The
 
 4. **Calibration** — the judge is calibrated against blinded human labels (κ + raw agreement + Gwet's AC1, with judge confidence ECE) before automated results are trusted. A second human rater labels a ≥50-item subset. The cascade's escalation threshold λ is set by conformal calibration over consistency-based confidence — never by verbalized confidence — and is invalidated automatically when the judge prompt or rubric changes (REQ-CAS-3). If κ stalls below the gate, a documented contingency applies instead of an unbounded iteration loop (REQ-CAL-7).
 
-5. **Review app** — blinded human labelling (authored expectations hidden until the label is committed) and judge inspection first; dashboards follow in Phase 2.
+5. **Review app** — from Phase 0: a read-only **dashboard** visualizing preparation (coverage matrix, fixture manifest mix, labelling progress) and evaluation (response-type distributions, over-refusal tables with CIs, the refusal-calibration frontier per system), plus blinded human labelling (authored expectations hidden until the label is committed). Judge inspection arrives in Phase 1; browser/calibration/queue pages in Phase 2.
 
 6. **Reporting & teaching** — `findings.md` plus a machine-readable **RAG Refusal Report** card per system × battery version ([REQUIREMENTS.md §7.3](REQUIREMENTS.md)), so independent runs produce comparable artifacts. Two human-authored documents make the repo an illustration, not just an instrument: [`docs/worked_example.md`](docs/worked_example.md) (one scenario traced end-to-end) and [`docs/methodology.md`](docs/methodology.md) (how to evaluate a RAG app for over-refusal).
 
@@ -59,7 +59,7 @@ A system that refuses everything is as broken as one that allows everything. The
 
 | Phase | Theme | Scope highlights |
 |-------|-------|------------------|
-| **0 — Walking skeleton (~2 weeks)** | Smallest end-to-end illustration | LEG + MED, 12–15 scenarios, validator + golden-value tests first, outcome-designed fixtures, single-prompt judge, blinded labels, **transcript adapter + first real report card against a NotebookLM-class UI**, worked example + methodology docs |
+| **0 — Walking skeleton (~2 weeks elapsed, ~8 human-hours)** | Smallest end-to-end illustration | LEG + MED, 12–15 scenarios, validator + golden-value tests first, outcome-designed fixtures, single-prompt judge, blinded labels, **transcript adapter + first real report card against a NotebookLM-class UI**, dashboard + labelling app pages, worked example + methodology docs. The assistant drafts everything; the human reviews, labels, operates, decides (REQ-HUM-3) |
 | **1 — Hardened harness** | Full measurement machinery | + SEC (~36–40 scenarios), cascade + conformal λ, swap augmentation, prompt-sim adapter, second human rater, pre-registered analysis plan, contested-case quota, factorial subset |
 | **2 — Real RAG + breadth** | Framework | local-RAG + API adapters, cross-system report, WildGuard shadow→promote, STEM/CBRN/HARM-PH scenarios, regression CI |
 | **3 — Closed-UI scale + deferred domains** | Coverage | transcript workflow upgrade, YMYL/domain experts, CRIS/EXTR/HARM-DRUG, document-injection class |
