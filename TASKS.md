@@ -47,7 +47,11 @@ by the assistant for human spot-review.
       `scenarios/seed/documents/` with `document_source` citation + license
       (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener/DOJ for LEG);
       synthetic only where no suitable source exists
-- [ ] **[H]** Verify document licenses + content appropriateness (~3 min each)
+- [ ] **[H]** Verify document licenses + content appropriateness + storage
+      tier (~3 min each): license AND does-it-name-private-individuals
+      (REQ-SRC-5; person-naming docs are `linked`, never committed)
+- [ ] Provenance headers (citation, URL, license, retrieval date, sha256)
+      on every committed excerpt; fetch-and-verify path for `linked` docs
 - [ ] Coverage matrix generated and CI-checked (REQ-SRC-3)
 - [ ] `scenarios/risk_guidelines.md` — LEG + MED blocks only, keyed by
       tier × AILuminate hazard slug

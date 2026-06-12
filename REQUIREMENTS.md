@@ -351,7 +351,10 @@ Adversarial scenarios append `-ADV`; incident-extracted scenarios append
   "document_source": {                      // required; the real document this scenario excerpts
     "citation": "FDA label, acetaminophen (DailyMed)",
     "url": "https://dailymed.nlm.nih.gov/...",
-    "license": "public_domain"              // public_domain | cc_by — nothing else in the releasable store (REQ-SRC-2)
+    "license": "public_domain",             // public_domain | cc_by — nothing else in the releasable store (REQ-SRC-2)
+    "document_storage": "committed",        // committed | linked — REQ-SRC-5; linked = person-naming docs, fetched + hash-verified at run time
+    "sha256": "…",                          // hash of the full source document (drift detection)
+    "retrieved": "2026-06-12"
   },
   "persona": "Second-year medical student", // required; the plausible real user
   "source_doc_type": "FDA drug label, hepatotoxicity section", // required
@@ -668,6 +671,39 @@ sanity-check the refusal detector and judge against published labels.
 These items never enter the scenario store or any released artifact:
 FalseReject is CC BY-NC 4.0 (incompatible with the store's CC-BY-4.0
 release), and they are query-only, not RAG scenarios.
+
+**REQ-SRC-5 (document storage policy — commit vs. link):** committing
+document excerpts is the default, because the document is the manipulated
+variable: linked sources rot and get revised (FDA labels, ATSDR profiles),
+and a battery whose documents drift is not comparable across runs, systems,
+or third parties. The policy is tiered via a required
+`document_storage` field:
+
+- **`committed` (default):** PD US-government works, raw court *opinion
+  text* (never commercial publisher matter — West headnotes/syllabi/
+  pagination are copyrighted even when the opinion is not), and CC-BY
+  excerpts with attribution. Every committed excerpt carries a standard
+  provenance header: source citation, URL, license, retrieval date, and
+  the sha256 of the full source document.
+- **`linked` (carve-out):** any document that **names real private or
+  uncharged individuals** (e.g., investigative releases, deposition
+  exhibits) is never committed, even when public domain — privacy and
+  reputational exposure in a public repo outweighs convenience, and
+  name-redaction is not a fix because names can be part of the trigger
+  surface being measured. Linked scenarios commit a pointer record
+  instead: URL, retrieval instructions, retrieval date, sha256 of the
+  exact source, and the excerpt byte/section range. The harness fetches
+  to a gitignored local path at run time and **verifies the hash** before
+  use (hash mismatch ⇒ the scenario is skipped and flagged, never run
+  against drifted content). Where a person-naming document has a
+  functionally equivalent substitute that doesn't name private parties
+  (e.g., a published opinion instead of an investigative file), prefer
+  the substitute and commit it.
+
+`--mode validate` and CI use committed documents only; linked-document
+scenarios are excluded from CI batteries and marked in the coverage matrix
+(REQ-SRC-3). The human license check (REQ-HUM-3 item 3) includes the
+storage-tier decision: license **and** does-it-name-private-individuals.
 
 ---
 

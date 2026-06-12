@@ -149,7 +149,7 @@ analysis_plan.md    Pre-registered RQ1/RQ2 analyses (Phase 1)
 - **No RED-tier scenarios** are stored in this repo or sent to any API. See [REQUIREMENTS.md §2](REQUIREMENTS.md) for the full list of content exclusions.
 - **Adversarial AMBER** is restricted to `MED` and `LEG` through Phase 1 — professional education domains where the adversarial boundary involves no technical harm content.
 - **No social-media scraping at any phase.** Incident grounding is manual-sweep only, from public journalism, vendor documentation, and academic sources, with provenance URLs ([REQUIREMENTS.md §6.2](REQUIREMENTS.md)).
-- **Documents are public-domain or CC-BY only** in the releasable store; NC/ND-licensed material is confined to a never-released validation pool.
+- **Documents are public-domain or CC-BY only** in the releasable store; NC/ND-licensed material is confined to a never-released validation pool. Committed excerpts carry provenance headers (citation, license, retrieval date, sha256). **Documents naming real private or uncharged individuals are never committed**, even when public domain — those scenarios store a hash-pinned pointer and fetch locally at run time ([REQUIREMENTS.md §6.2](REQUIREMENTS.md), REQ-SRC-5).
 - `data/results.ndjson`, `data/labels.ndjson`, and `data/cache/` are gitignored. Only `data/precomputed/` and frozen judge fixtures (deterministic, no secrets) are committed.
 
 ---
