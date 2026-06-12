@@ -1,30 +1,30 @@
 # Penumbra — Build Tasks
 
-Task list reflects REQUIREMENTS.md **v3** as amended by
-**REQUIREMENTS_ADDENDUM.md v3.1** (illustration-first restructure, implementing
-`plan_evaluation.md` R1–R12). Phase 0 is the immediate target; the spec is
-frozen until Phase 0 artifacts exist (R1).
+Task list is the execution view of **REQUIREMENTS.md v4** (consolidated,
+illustration-first). Phase 0 is the immediate target; the spec is frozen
+until Phase 0 artifacts exist — the next REQUIREMENTS revision is driven by
+run artifacts, not further review.
 
 ---
 
 ## Phase 0 — Walking skeleton + illustration (~2 weeks; LEG + MED only)
 
-Build order below is normative (A1). No cascade, no conformal λ, no swap
+Build order below is normative (REQUIREMENTS §13 Phase 0). No cascade, no conformal λ, no swap
 augmentation, no second rater, no prompt-sim, no factorial in this phase.
 
 ### 0.1 Validation first
 
 - [ ] `requirements.txt`, `.gitignore`, `.env.example`, `.devcontainer/devcontainer.json`
-- [ ] `scenarios/schema.md` + JSON Schema file for the v3 scenario record
-      (with v3.1 amendments: no `doc_condition` field; `contested` flag added;
-      `source` enum extended to cover `news_extracted` / `academic_extracted`)
+- [ ] `scenarios/schema.md` + JSON Schema file for the v4 scenario record
+      (§4: `contested`, `grounding_type`, `prompt_source`, `document_source`;
+      no `doc_condition`; extended `source` enum)
 - [ ] `eval/validate.py` — schema validator over `scenarios/**`; exits nonzero
       on any violation
 - [ ] Golden-value tests for `eval/metrics.py` (hand-checked Wilson CI, κ,
       raw agreement on tiny known inputs) — `tests/test_metrics.py`
 - [ ] `.github/workflows/smoke_test.yml` — validator + imports + fixture
       MANIFEST check; **no API keys**
-- [ ] Bring the 4 committed scenarios into v3.1 conformance (add `topic_id`,
+- [ ] Bring the 4 committed scenarios into v4 conformance (add `topic_id`,
       `ailuminate_hazards`, `canary`; fix `source` enum) or relocate to
       `scenarios/extracted/` per REQ-EXT-2
 - [ ] Generate repo-wide canary GUID; document private held-out split process
@@ -48,7 +48,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 ### 0.3 Fixtures as a designed instrument (REQ-FIX-1)
 
 - [ ] `scenarios/seed/fixtures/{scenario_id}.json` with the stratified
-      outcome mix from addendum A3 (incl. refusal-reason variety and *bad*
+      outcome mix from REQ-FIX-1 (incl. refusal-reason variety and *bad*
       adversarial outputs)
 - [ ] `scenarios/seed/fixtures/MANIFEST.json` — declared mix; validated in CI
 - [ ] `scenarios/seed/judge_fixtures/` — committed judge outputs frozen from
@@ -57,7 +57,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 ### 0.4 Minimal pipeline
 
 - [ ] `llm_client.py` — judge chain only for Phase 0 (`call_llm(role="judge")`,
-      rate limiting, retries, usage log); proxy/triage/second-rater chains stubbed
+      rate limiting, retries, usage log); proxy/second-rater chains stubbed
 - [ ] `python llm_client.py --precompute` — guideline blocks for LEG/MED
 - [ ] `systems/base.py` — `RAGSystemAdapter` protocol + `RAGResponse`
 - [ ] `systems/fixture_adapter.py`
@@ -93,7 +93,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 - [ ] `docs/methodology.md` — practitioner guide to RAG over-refusal
       evaluation (incl. contested-case interpretation)
 - [ ] README quick start updated to lead with `--mode validate` and the
-      worked example; honest wall-clock note for judged runs (A4)
+      worked example; honest wall-clock note for judged runs (REQ-VAL-1)
 
 ### Phase 0 exit criteria
 
@@ -111,8 +111,8 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 ### Research framing
 - [ ] `analysis_plan.md` — pre-registered RQ1/RQ2 analyses (§7.4), committed
       before first prompt-sim battery
-- [ ] Recompute §8 cost table for the v3 design; add battery wall-clock per
-      adapter and the human-hours budget table (REQ-HUM-1)
+- [ ] Validate §8 battery wall-clock and REQ-HUM-1 human-hours estimates
+      against Phase 0 actuals; update §8 from logged usage
 
 ### Scenario content
 - [ ] Expand LEG/MED to ≥8 GREEN + ≥5 AMBER each; SEC ≥6 GREEN + ≥4 AMBER
@@ -120,14 +120,14 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 - [ ] Adversarial AMBER: MED ≥5, LEG ≥5
 - [ ] Contested cases: total 4–6 (REQ-CON-1)
 - [ ] Shared `mismatched_benign` document pool (per-domain) +
-      `flagged_terms` variants for the ~10-scenario factorial subset (A5)
+      `flagged_terms` variants for the ~10-scenario factorial subset (§6.12)
 - [ ] Freeze a sample of prompt-sim outputs as fixtures, preserving the
       MANIFEST mix (circularity mitigation)
 
 ### Pipeline hardening
 - [ ] `systems/prompt_sim_adapter.py` + system prompt (REQ-SUT-3/4);
       full-document grounding norm; k≥3 repeats (REQ-HARNESS-4)
-- [ ] Full proxy/triage/second-rater chains in `llm_client.py` + cross-family
+- [ ] Full proxy/second-rater chains in `llm_client.py` + cross-family
       `ConfigError` checks
 - [ ] Swap augmentation + SUSPECT verdict; consistency confidence m=3 on AMBER
 - [ ] `judge/cascade.py` — screener → detector → judge → queue; λ from
@@ -139,7 +139,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
       (REQ-CAL-2)
 - [ ] McNemar over `topic_id` pairs; bootstrap difference CIs
 - [ ] `experiments/doc_fidelity.py` — factorial subset + grounding-fidelity
-      run (§6.12, scoped per A5)
+      run (§6.12)
 
 ### Labelling sprint
 - [ ] Rater_1 labels full seed set (blinded)
@@ -150,7 +150,7 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 
 ### App + reports
 - [ ] Review app: blinded labelling page (from Phase 0) + judge inspector
-      (REQ-APP-2/3); other pages deferred to Phase 2 (A10)
+      (REQ-APP-2/3); other pages deferred to Phase 2 (§6.9)
 - [ ] `generate_report.py`: refusal_reason breakdown, verbosity-bias check
       (REQ-JUDGE-7), trend-integrity guard, full report card (§7.3)
 
@@ -170,10 +170,10 @@ augmentation, no second rater, no prompt-sim, no factorial in this phase.
 - [ ] `systems/api_adapter.py` (opt-in, per-vendor ToS)
 - [ ] First cross-system comparative report on the fixed battery
 - [ ] WildGuard **shadow** detector for ≥1 full battery; committed comparison;
-      separate promotion of screener and detector (A11); document RAM
+      separate promotion of screener and detector (§12 decision 4); document RAM
       requirement + hosted fallback
 - [ ] Add `STEM`, `CBRN`, `HARM/PH` scenarios (GREEN + regular AMBER;
-      moved from Phase 1 per A10); adversarial AMBER for `SEC` + `STEM/PHYS`
+      moved from Phase 1 per §12 decision 10); adversarial AMBER for `SEC` + `STEM/PHYS`
 - [ ] `OFFSEC/PENTEST` (GREEN + regular AMBER only)
 - [ ] Document factorial in the standard live battery
 - [ ] Confirmatory per-cell n from Phase 1 variance → expand store
@@ -192,8 +192,8 @@ REQ-CAL-7 contingency mode formally adopted and documented.
 - [ ] YMYL AMBER (MED, LEG, MH) with domain-expert workflow
 - [ ] Deferred domains: `CRIS`, `EXTR`, `HARM/DRUG` (GREEN + regular AMBER)
 - [ ] `STEM/CHEM` adversarial AMBER (non-CBRN constraint)
-- [ ] ~~Reddit collector~~ → replaced by quarterly **manual incident sweep**
-      (REQ-SRC-1 layer 1; SURVEY_NOTES.md method); `collect.yml` removed
+- [ ] Formalize the quarterly **manual incident sweep** (REQ-SRC-1 layer 1;
+      SURVEY_NOTES.md method) with a sweep checklist + extraction template
 - [ ] Document-injection scenario class (both directions)
 - [ ] Krippendorff's α once raters > 2
 
@@ -202,8 +202,6 @@ REQ-CAL-7 contingency mode formally adopted and documented.
 ---
 
 ## Phase 4 — Scale (500+ scenarios) + dataset release
-
-Unchanged from v3:
 
 - [ ] Generation-with-curation pipeline (OR-Bench-style queries +
       RefusalBench-style document perturbation; human curation fills
