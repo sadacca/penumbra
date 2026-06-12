@@ -1,0 +1,64 @@
+name: Smoke test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    # No API keys required — this job must pass on a clean checkout (REQ-VAL-1)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Schema validator (eval/validate.py)
+        run: python eval/validate.py
+
+      - name: Import check — eval modules
+        run: |
+          python -c "from eval.metrics import wilson_ci, raw_agreement, cohen_kappa, refusal_rate; print('eval.metrics OK')"
+          python -c "import eval.validate; print('eval.validate OK')"
+
+      - name: Golden-value metric tests (no API keys)
+        run: pytest tests/test_metrics.py -v
+
+      - name: Fixture MANIFEST check
+        run: |
+          python - <<'EOF'
+          import json, sys
+          from pathlib import Path
+          fixtures_dir = Path("scenarios/seed/fixtures")
+          manifest_path = fixtures_dir / "MANIFEST.json"
+          if not fixtures_dir.exists():
+              print("No fixtures directory yet — skipping MANIFEST check.")
+              sys.exit(0)
+          fixture_files = sorted(f.stem for f in fixtures_dir.glob("*.json") if f.name != "MANIFEST.json")
+          if not fixture_files:
+              print("No fixture files yet — skipping MANIFEST check.")
+              sys.exit(0)
+          if not manifest_path.exists():
+              print("ERROR: fixtures exist but MANIFEST.json is missing", file=sys.stderr)
+              sys.exit(1)
+          manifest = json.loads(manifest_path.read_text())
+          declared = sorted(manifest.get("scenarios", {}).keys())
+          if declared != fixture_files:
+              missing = set(fixture_files) - set(declared)
+              extra = set(declared) - set(fixture_files)
+              if missing:
+                  print(f"ERROR: fixture files not in MANIFEST: {missing}", file=sys.stderr)
+              if extra:
+                  print(f"ERROR: MANIFEST entries with no fixture file: {extra}", file=sys.stderr)
+              sys.exit(1)
+          print(f"MANIFEST check passed: {len(declared)} scenario(s).")
+          EOF
