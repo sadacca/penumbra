@@ -1,0 +1,82 @@
+[
+  {
+    "source_id": "fda_acetaminophen_injection",
+    "excerpt_file": "fda_acetaminophen_injection.md",
+    "citation": "FDA prescribing information, acetaminophen injection (DailyMed SPL): boxed warning + overdosage sections",
+    "url": "https://dailymed.nlm.nih.gov/dailymed/search.cfm?query=acetaminophen+injection",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Boxed warning (hepatotoxicity); Overdosage (presentation, acetylcysteine management)",
+    "fetch_note": "DailyMed search returns an SPL set; operator selects the current acetaminophen injection label, copies the boxed warning + overdosage sections. The fetch script's stored .full.txt is the raw search/SPL payload for hashing; the human trims the excerpt."
+  },
+  {
+    "source_id": "fda_warfarin_label",
+    "excerpt_file": "fda_warfarin_label.md",
+    "citation": "FDA prescribing information, warfarin sodium tablets (DailyMed SPL): boxed warning + drug interactions",
+    "url": "https://dailymed.nlm.nih.gov/dailymed/search.cfm?query=warfarin+sodium",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Boxed warning (bleeding risk); Drug interactions (CYP2C9/3A4, vitamin K)",
+    "fetch_note": "Select the reference warfarin sodium tablet label; copy boxed warning + interactions tables."
+  },
+  {
+    "source_id": "fda_naloxone_label",
+    "excerpt_file": "fda_naloxone_label.md",
+    "citation": "FDA drug facts / prescribing information, naloxone hydrochloride nasal spray (DailyMed SPL): indications + administration",
+    "url": "https://dailymed.nlm.nih.gov/dailymed/search.cfm?query=naloxone+hydrochloride+nasal+spray",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Indications; Dosage and administration; Post-administration monitoring",
+    "fetch_note": "Select the OTC naloxone nasal spray label; copy indications + administration steps."
+  },
+  {
+    "source_id": "atsdr_lead_profile",
+    "excerpt_file": "atsdr_lead_profile.md",
+    "citation": "ATSDR Toxicological Profile for Lead (CDC/ATSDR), health effects chapter excerpt",
+    "url": "https://www.atsdr.cdc.gov/toxprofiles/tp13.pdf",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Health effects: neurological, haematological, developmental (children and adults)",
+    "fetch_note": "Large PDF; operator extracts the relevant health-effects subsections. sha256 is of the full PDF."
+  },
+  {
+    "source_id": "terry_v_ohio",
+    "excerpt_file": "terry_v_ohio.md",
+    "citation": "Terry v. Ohio, 392 U.S. 1 (1968), opinion of the Court (excerpt)",
+    "url": "https://www.courtlistener.com/c/U.S./392/1/",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Facts (officer's observations); reasonable-suspicion standard; holding",
+    "fetch_note": "U.S. Supreme Court opinions are public domain (government work). Defendants were charged/adjudicated — permitted substitute under REQ-SRC-5. CourtListener may redirect to an API/opinion URL; follow it."
+  },
+  {
+    "source_id": "miranda_v_arizona",
+    "excerpt_file": "miranda_v_arizona.md",
+    "citation": "Miranda v. Arizona, 384 U.S. 436 (1966), opinion of the Court (excerpt)",
+    "url": "https://www.courtlistener.com/c/U.S./384/436/",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Required custodial-interrogation safeguards; reasoning on coercion",
+    "fetch_note": "Public-domain SCOTUS opinion. Copy the procedural-safeguards holding."
+  },
+  {
+    "source_id": "brandenburg_v_ohio",
+    "excerpt_file": "brandenburg_v_ohio.md",
+    "citation": "Brandenburg v. Ohio, 395 U.S. 444 (1969), per curiam opinion (excerpt)",
+    "url": "https://www.courtlistener.com/c/U.S./395/444/",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Imminent-lawless-action test; reversal of conviction; footnote reproducing rally statements (for CRIM-002/004 only)",
+    "fetch_note": "Public-domain SCOTUS opinion. The footnoted rally statements are part of the published record; their reproduction is what makes CRIM-002 (AMBER) and CRIM-004 (contested) boundary cases. No private individuals named beyond the charged/adjudicated defendant."
+  },
+  {
+    "source_id": "us_v_salerno",
+    "excerpt_file": "us_v_salerno.md",
+    "citation": "United States v. Salerno, 481 U.S. 739 (1987), opinion of the Court (excerpt)",
+    "url": "https://www.courtlistener.com/c/U.S./481/739/",
+    "license": "public_domain",
+    "person_naming": false,
+    "cited_sections": "Bail Reform Act pretrial-detention holding; facial-challenge reasoning",
+    "fetch_note": "Public-domain SCOTUS opinion. Named defendant was charged/convicted; opinion is the REQ-SRC-5 substitute for investigative files."
+  }
+]

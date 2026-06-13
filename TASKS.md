@@ -17,105 +17,106 @@ the human reviews, blind-labels, operates the transcript battery, and
 decides. Tasks marked **[H]** are the human's; everything else is drafted
 by the assistant for human spot-review.
 
-### 0.1 Validation first
+> **Status (2026-06-13):** the entire assistant-drafted skeleton (0.1, 0.3,
+> 0.4, plus the authored half of 0.2/0.5/0.6) is built, runs key-free, and is
+> committed. Remaining work is the human's: tier sign-off, the networked
+> document fetch, blind labelling, and the transcript battery — collected in
+> [`docs/HUMAN_REVIEW.md`](docs/HUMAN_REVIEW.md). `[H]` marks human-only tasks.
 
-- [ ] `requirements.txt`, `.gitignore`, `.env.example`, `.devcontainer/devcontainer.json`
-- [ ] `scenarios/schema.md` + JSON Schema file for the v4 scenario record
-      (§4: `contested`, `grounding_type`, `prompt_source`, `document_source`;
-      no `doc_condition`; extended `source` enum)
-- [ ] `eval/validate.py` — schema validator over `scenarios/**`; exits nonzero
-      on any violation
-- [ ] Golden-value tests for `eval/metrics.py` (hand-checked Wilson CI, κ,
-      raw agreement on tiny known inputs) — `tests/test_metrics.py`
-- [ ] `.github/workflows/smoke_test.yml` — validator + imports + fixture
-      MANIFEST check; **no API keys**
-- [ ] Bring the 4 committed scenarios into v4 conformance (add `topic_id`,
-      `ailuminate_hazards`, `canary`; fix `source` enum) or relocate to
-      `scenarios/extracted/` per REQ-EXT-2
-- [ ] Generate repo-wide canary GUID; document private held-out split process
+### 0.1 Validation first — DONE
 
-### 0.2 Scenario content (12–15 scenarios; sourcing per REQ-SRC-1..3)
+- [x] `requirements.txt`, `.gitignore`, `.env.example`, `.devcontainer/devcontainer.json`
+- [x] `scenarios/schema.md` + JSON Schema (`scenarios/scenario_schema.json`) for
+      the v4 record (§4: `contested`, `grounding_type`, `prompt_source`,
+      `document_source`; no `doc_condition`; extended `source` enum)
+- [x] `eval/validate.py` — schema validator over `scenarios/**` + coverage
+      matrix; exits nonzero on any violation; warns on `PENDING_FETCH`
+- [x] Golden-value tests for `eval/metrics.py` (Wilson CI, κ, raw agreement) —
+      `tests/test_metrics.py` (22 cases)
+- [x] `.github/workflows/smoke_test.yml` — validator + imports + golden tests +
+      fixture MANIFEST check; **no API keys**
+- [x] Extracted scenarios brought to v4 conformance (added `topic_id`,
+      `ailuminate_hazards`, `grounding_type`, `prompt_source`, `contested`,
+      `canary`); kept in `scenarios/extracted/` with `document_source: null`
+      per REQ-EXT-2 (not yet promotable)
+- [x] Repo-wide canary GUID (`760abe82-…`) generated + pinned; private
+      held-out split documented (§4)
 
-- [ ] Draft prompts: incidents from the existing survey + curriculum
-      derivation (USMLE/NBME outline for MED; NCBE MBE outline for LEG);
-      record `grounding_type` + `prompt_source`
-- [ ] **[H]** Review drafted scenarios + sign off tiers (~5 min each)
-- [ ] LEG: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
-- [ ] MED: 4 GREEN + 2 AMBER (topic-paired), 1 adversarial AMBER
-- [ ] 1–2 contested cases (`contested: true`, REQ-CON-1)
-- [ ] One **real PD/CC-BY document excerpt** per scenario (1–3 pp) in
-      `scenarios/seed/documents/` with `document_source` citation + license
-      (REQ-SRC-2: DailyMed/ATSDR for MED, CourtListener opinions for LEG);
-      synthetic only where no suitable source exists
-- [ ] **[H]** Verify document licenses + content appropriateness (~3 min
-      each): license AND does-it-name-private-individuals (REQ-SRC-5;
-      person-naming docs are excluded entirely — substitute or drop)
-- [ ] Provenance headers (citation, URL, license, retrieval date, sha256)
-      on every committed excerpt
-- [ ] Coverage matrix generated and CI-checked (REQ-SRC-3)
-- [ ] `scenarios/risk_guidelines.md` — LEG + MED blocks only, keyed by
-      tier × AILuminate hazard slug
+### 0.2 Scenario content (16 scenarios; sourcing per REQ-SRC-1..3)
 
-### 0.3 Fixtures as a designed instrument (REQ-FIX-1)
+- [x] Drafted prompts: incidents + curriculum derivation (USMLE/NBME for MED;
+      NCBE MBE for LEG); `grounding_type` + `prompt_source` recorded
+- [ ] **[H]** Review drafted scenarios + sign off tiers; confirm each
+      `[HUMAN-VERIFY citation]` blueprint reference (~1.5 h) — HUMAN_REVIEW §1
+- [x] LEG: 4 GREEN + 2 AMBER (topic-paired) + 1 adversarial AMBER + 1 contested
+- [x] MED: 4 GREEN + 2 AMBER (topic-paired) + 1 adversarial AMBER + 1 contested
+- [x] 2 contested cases (`contested: true`, REQ-CON-1)
+- [~] Real PD/CC-BY document excerpt per scenario in
+      `scenarios/seed/documents/` with `document_source` citation + license +
+      `SOURCES.json` fetch manifest + `eval/fetch_documents.py`. Excerpts are
+      **placeholders** + `sha256: PENDING_FETCH` until the networked fetch step.
+- [ ] **[H]** Run `eval/fetch_documents.py` (networked), replace placeholders
+      with verbatim text, verify license + REQ-SRC-5 (~1 h) — HUMAN_REVIEW §2
+- [x] Provenance headers wired (citation, URL, license, retrieval, sha256
+      fields present; hashes fill on fetch)
+- [x] Coverage matrix generated and CI-checked (REQ-SRC-3)
+- [x] `scenarios/risk_guidelines.md` — LEG + MED blocks, keyed by
+      tier × AILuminate hazard slug (13 blocks; `--precompute` parses them)
 
-- [ ] `scenarios/seed/fixtures/{scenario_id}.json` with the stratified
-      outcome mix from REQ-FIX-1 (incl. refusal-reason variety and *bad*
-      adversarial outputs) — assistant-drafted; **the human does not read
-      these before blind-labelling them** (REQ-HUM-3 blinding order;
-      labelling doubles as fixture QA)
-- [ ] `scenarios/seed/fixtures/MANIFEST.json` — declared mix; validated in CI
-- [ ] `scenarios/seed/judge_fixtures/` — committed judge outputs frozen from
-      the first real judged run (enables `--mode validate`, REQ-VAL-1)
+### 0.3 Fixtures as a designed instrument (REQ-FIX-1) — DONE (judge-freeze pending)
 
-### 0.4 Minimal pipeline
+- [x] `scenarios/seed/fixtures/{scenario_id}.json` (16) with the stratified
+      outcome mix (refusal-reason variety + *bad* adversarial outputs);
+      response-text only — design hidden from the labeller (REQ-HUM-3)
+- [x] `scenarios/seed/fixtures/MANIFEST.json` — declared mix; validated in CI
+- [ ] **[H]** `scenarios/seed/judge_fixtures/` — frozen from the first judged
+      run (`--mode seed --freeze-judge-fixtures`, needs a key) — HUMAN_REVIEW §6
 
-- [ ] `llm_client.py` — judge chain only for Phase 0 (`call_llm(role="judge")`,
-      rate limiting, retries, usage log); proxy/second-rater chains stubbed
-- [ ] `python llm_client.py --precompute` — guideline blocks for LEG/MED
-- [ ] `systems/base.py` — `RAGSystemAdapter` protocol + `RAGResponse`
-- [ ] `systems/fixture_adapter.py`
-- [ ] `systems/transcript_adapter.py` v0 (REQ-TRN-1) + paste template +
-      `data/transcripts/` layout
-- [ ] `judge/refusal_detector.py` — rules-based v0 (`response_type` +
-      `refusal_reason`)
-- [ ] `judge/judge.py` — single-prompt judge: verdict + mandatory rationale +
-      logged (non-gating) confidence; `judge/prompts/judge_system.md` +
-      `judge_user.md` (tier-conditional framing incl. GREEN/AMBER blocks)
-- [ ] `harness/run_eval.py` — `--system fixture|transcript`,
-      `--mode validate` (key-free, REQ-VAL-1), provenance hashes
-      (REQ-HARNESS-1), idempotent appends
-- [ ] `eval/metrics.py` — rates with n + Wilson CI (bare percentage = error),
-      raw agreement + κ; contested cases excluded from gate metrics (REQ-CON-1)
-- [ ] `reports/generate_report.py` v0 — response-type distribution,
-      over-refusal table, frontier point, contested-case section
-- [ ] `reports/report_card_schema.json` v0 + first card emission
-- [ ] `review_app/app.py` + `review_app/pages/00_dashboard.py` — read-only
-      prep + results visualization (REQ-APP-10): coverage matrix, manifest
-      mix declared vs. actual, labelling progress; post-run: response-type
-      distribution, over-refusal table with Wilson CI bars, frontier per
-      system_id, contested profile; graceful empty states (REQ-DEV-2)
+### 0.4 Minimal pipeline — DONE
+
+- [x] `llm_client.py` — judge chain (Cerebras→Groq), rate limiting, retries,
+      usage log; proxy/second-rater raise `NotImplementedError("Phase 1")`
+- [x] `python llm_client.py --precompute` — guideline blocks for LEG/MED
+- [x] `systems/base.py` — `RAGSystemAdapter` protocol + `RAGResponse`
+- [x] `systems/fixture_adapter.py`
+- [x] `systems/transcript_adapter.py` v0 (REQ-TRN-1) + `data/transcripts/`
+      TEMPLATE + README
+- [x] `judge/refusal_detector.py` — rules-based v0 (`response_type` +
+      `refusal_reason` + matched patterns)
+- [x] `judge/judge.py` — single-prompt judge (verdict + mandatory rationale +
+      logged non-gating confidence); `judge/prompts/judge_system.md` +
+      `judge_user.md` (tier-conditional framing)
+- [x] `harness/run_eval.py` — `--system fixture|transcript`, `--mode validate`
+      (key-free, REQ-VAL-1), provenance hashes (REQ-HARNESS-1), idempotent
+      appends
+- [x] `eval/metrics.py` — rates with n + Wilson CI, raw agreement + κ;
+      contested excluded from gate metrics (REQ-CON-1)
+- [x] `reports/generate_report.py` v0 — response-type distribution,
+      over-refusal table, frontier point, contested section
+- [x] `reports/report_card_schema.json` v0 + schema-valid card emission
+- [x] `review_app/app.py` + `pages/00_dashboard.py` — read-only prep + results
+      viz (REQ-APP-10) with graceful empty states (REQ-DEV-2)
 
 ### 0.5 Labels + first real run
 
-- [ ] Blinded labelling form (`01_human_labels.py` or CLI; REQ-APP-4
-      blinding rules in full; 1–5 rater confidence; `fixture_broken` flag
-      per REQ-HUM-3; writes `labels.ndjson`)
-- [ ] Assistant-prepared transcript run sheet (copy-paste-ready queries +
-      paste template + checklist) to minimize human minutes per scenario
-- [ ] **[H]** Rater_1 blind-labels all Phase 0 fixtures (~1.5 h); raw
-      agreement + κ reported (advisory); `fixture_broken` items replaced
-- [ ] **[H]** Manual transcript battery: run the 10–15 hardest scenarios
-      through a real NotebookLM-class UI (~2 h); emit **first real report
-      card**
+- [x] Blinded labelling form (`review_app/pages/01_human_labels.py`; REQ-APP-4
+      blinding; 1–5 confidence; `fixture_broken`; writes `labels.ndjson`)
+- [x] Assistant-prepared transcript run sheet + paste template
+      (`data/transcripts/README.md` + `TEMPLATE.json`)
+- [ ] **[H]** Rater_1 blind-labels all 16 fixtures (~1.5 h); raw agreement + κ
+      reported (advisory); `fixture_broken` items replaced — HUMAN_REVIEW §3
+- [ ] **[H]** Manual transcript battery: 10–15 hardest scenarios through a real
+      NotebookLM-class UI (~2 h); emit **first real report card** — HUMAN_REVIEW §4
 
-### 0.6 Illustration deliverables (REQ-ILL-1)
+### 0.6 Illustration deliverables (REQ-ILL-1) — DONE
 
-- [ ] `docs/worked_example.md` — one scenario traced end-to-end with real
-      artifacts
-- [ ] `docs/methodology.md` — practitioner guide to RAG over-refusal
-      evaluation (incl. contested-case interpretation)
-- [ ] README quick start updated to lead with `--mode validate` and the
-      worked example; honest wall-clock note for judged runs (REQ-VAL-1)
+- [x] `docs/worked_example.md` — `RAG-LEG-CRIM-001` traced end-to-end with real
+      validate-run artifacts
+- [x] `docs/methodology.md` — practitioner guide (incl. contested-case
+      interpretation)
+- [x] README quick start already leads with `--mode validate` + honest
+      wall-clock note for judged runs (REQ-VAL-1)
+- [x] `docs/HUMAN_REVIEW.md` — the human's ordered ~8 h worklist (REQ-HUM-1/3)
 
 ### Phase 0 exit criteria
 

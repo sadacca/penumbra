@@ -28,6 +28,10 @@ SEED_FILES = [
     REPO_ROOT / "scenarios" / "seed" / "amber.json",
 ]
 
+# Scenarios whose source document has not been fetched/hashed yet
+# (document_source.sha256 == "PENDING_FETCH"); populated during validation.
+PENDING_FETCH_SCENARIOS: list[str] = []
+
 
 def load_schema() -> dict:
     with open(SCHEMA_PATH) as f:
@@ -72,6 +76,12 @@ def validate_file(path: Path, schema: dict, validator_cls) -> list[str]:
                 f"{path.name}[{sid}]: seed scenarios require document_source "
                 f"(null only allowed in scenarios/extracted/)"
             )
+
+        # PENDING_FETCH sentinel: valid, but tracked as a warning so the
+        # human fetch step (eval/fetch_documents.py) is visible in CI output
+        doc_src = scenario.get("document_source") or {}
+        if doc_src.get("sha256") == "PENDING_FETCH":
+            PENDING_FETCH_SCENARIOS.append(sid)
 
         # AMBER requires contested/distinguishing_signal
         if scenario.get("tier") == "AMBER":
@@ -167,6 +177,15 @@ def main(argv: list[str] | None = None) -> int:
         seed_scenarios.extend(load_scenarios(path))
 
     print("All scenarios valid.")
+    if PENDING_FETCH_SCENARIOS:
+        print(
+            f"\nWARNING: {len(PENDING_FETCH_SCENARIOS)} scenario(s) have "
+            f"document_source.sha256 == PENDING_FETCH — run "
+            f"'python eval/fetch_documents.py' on a networked machine to "
+            f"fetch source documents and fill hashes:"
+        )
+        for sid in PENDING_FETCH_SCENARIOS:
+            print(f"  - {sid}")
     coverage_matrix(seed_scenarios)
     return 0
 
