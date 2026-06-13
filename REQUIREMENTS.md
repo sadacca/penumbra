@@ -1,6 +1,16 @@
 # Penumbra — RAG Over-Refusal Evaluation Harness
 ## Requirements & Architecture — v4 (Consolidated)
 
+> **Implementation status (2026-06-13):** the Phase 0 walking skeleton
+> specified in §13 is built and verified — 16-scenario LEG+MED store,
+> designed fixtures + manifest, minimal pipeline with key-free
+> `--mode validate`, dashboard + blinded labelling app, illustration docs.
+> Outstanding Phase 0 items are human-only (tier sign-off, networked
+> document fetch, blind labelling, transcript battery):
+> see [docs/HUMAN_REVIEW.md](docs/HUMAN_REVIEW.md) and
+> [TASKS.md](TASKS.md). Per the freeze rule (TASKS.md header), the next
+> spec revision is driven by Phase 0 run artifacts, not further review.
+
 > **Scope:** A harness for evaluating safety behaviour in document-grounded
 > AI systems (RAG assistants) — covering both **over-refusal** (blocking
 > legitimate professional and educational use) and **harm** (failing to
