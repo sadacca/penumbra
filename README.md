@@ -8,6 +8,19 @@ The project has two staged ambitions: first, a **legible illustration of how RAG
 
 ---
 
+## Status — Phase 0 skeleton built; human review pending
+
+The assistant-drafted half of Phase 0 is complete and verified on this branch:
+
+- **16-scenario LEG+MED battery** (8 GREEN, 4 AMBER, 2 adversarial, 2 contested) in topic-matched pairs, curriculum-anchored, grounded in public-domain documents
+- **Outcome-designed fixtures** (REQ-FIX-1) + CI-validated `MANIFEST.json`
+- **Full minimal pipeline**: refusal detector → judge → metrics → schema-valid report card, with provenance hashes; `--mode validate` runs end-to-end **with no API keys**
+- **Dashboard + blinded labelling app**, **worked example + methodology docs**; 59 tests green in CI
+
+Remaining Phase 0 work is human-only and collected as an ordered ~8 h worklist in **[`docs/HUMAN_REVIEW.md`](docs/HUMAN_REVIEW.md)**: tier sign-off, the networked document fetch (the authoring environment had no network egress, so committed excerpts are placeholders with `sha256: PENDING_FETCH`), blind labelling, and the transcript battery.
+
+---
+
 ## Research questions
 
 This harness is designed to generate preliminary evidence on two questions that are, as of yet, not answered clearly in published literature.
@@ -51,7 +64,7 @@ A system that refuses everything is as broken as one that allows everything. The
 
 5. **Review app** — from Phase 0: a read-only **dashboard** visualizing preparation (coverage matrix, fixture manifest mix, labelling progress) and evaluation (response-type distributions, over-refusal tables with CIs, the refusal-calibration frontier per system), plus blinded human labelling (authored expectations hidden until the label is committed). Judge inspection arrives in Phase 1; browser/calibration/queue pages in Phase 2.
 
-6. **Reporting & teaching** — `findings.md` plus a machine-readable **RAG Refusal Report** card per system × battery version ([REQUIREMENTS.md §7.3](REQUIREMENTS.md)), so independent runs produce comparable artifacts. Two human-authored documents make the repo an illustration, not just an instrument: [`docs/worked_example.md`](docs/worked_example.md) (one scenario traced end-to-end) and [`docs/methodology.md`](docs/methodology.md) (how to evaluate a RAG app for over-refusal).
+6. **Reporting & teaching** — `findings.md` plus a machine-readable **RAG Refusal Report** card per system × battery version ([REQUIREMENTS.md §7.3](REQUIREMENTS.md)), so independent runs produce comparable artifacts. Two teaching documents (assistant-drafted, human-reviewed per REQ-HUM-3) make the repo an illustration, not just an instrument: [`docs/worked_example.md`](docs/worked_example.md) (one scenario traced end-to-end) and [`docs/methodology.md`](docs/methodology.md) (how to evaluate a RAG app for over-refusal).
 
 ---
 
@@ -59,7 +72,7 @@ A system that refuses everything is as broken as one that allows everything. The
 
 | Phase | Theme | Scope highlights |
 |-------|-------|------------------|
-| **0 — Walking skeleton (~2 weeks elapsed, ~8 human-hours)** | Smallest end-to-end illustration | LEG + MED, 12–15 scenarios, validator + golden-value tests first, outcome-designed fixtures, single-prompt judge, blinded labels, **transcript adapter + first real report card against a NotebookLM-class UI**, dashboard + labelling app pages, worked example + methodology docs. The assistant drafts everything; the human reviews, labels, operates, decides (REQ-HUM-3) |
+| **0 — Walking skeleton (~2 weeks elapsed, ~8 human-hours)** — *skeleton built; human steps remain ([HUMAN_REVIEW.md](docs/HUMAN_REVIEW.md))* | Smallest end-to-end illustration | LEG + MED, 16 scenarios, validator + golden-value tests first, outcome-designed fixtures, single-prompt judge, blinded labels, **transcript adapter + first real report card against a NotebookLM-class UI**, dashboard + labelling app pages, worked example + methodology docs. The assistant drafts everything; the human reviews, labels, operates, decides (REQ-HUM-3) |
 | **1 — Hardened harness** | Full measurement machinery | + SEC (~36–40 scenarios), cascade + conformal λ, swap augmentation, prompt-sim adapter, second human rater, pre-registered analysis plan, contested-case quota, factorial subset |
 | **2 — Real RAG + breadth** | Framework | local-RAG + API adapters, cross-system report, WildGuard shadow→promote, STEM/CBRN/HARM-PH scenarios, regression CI |
 | **3 — Closed-UI scale + deferred domains** | Coverage | transcript workflow upgrade, YMYL/domain experts, CRIS/EXTR/HARM-DRUG, document-injection class |
@@ -81,66 +94,91 @@ Penumbra's hazard axis uses the [MLCommons AILuminate v1.0](https://mlcommons.or
 # Install dependencies
 pip install -r requirements.txt
 
-# Precompute judge prompt blocks (deterministic; no API keys needed)
+# Sanity check: scenario schema + coverage matrix, then the test suite
+python eval/validate.py
+python -m pytest tests/ -q
+
+# Precompute judge prompt blocks from scenarios/risk_guidelines.md
+# (deterministic; no API keys needed)
 python llm_client.py --precompute
 
 # Validate mode: schema + coverage matrix, fixtures, refusal-detector rules,
 # metrics and report over committed judge-output fixtures — no API keys (REQ-VAL-1)
 python harness/run_eval.py --mode validate
+python reports/generate_report.py        # findings.md + report card → reports/generated/
 
-# Launch review app
+# Launch review app (dashboard + blinded labelling)
 streamlit run review_app/app.py
 ```
+
+Then read [`docs/worked_example.md`](docs/worked_example.md), which traces one
+scenario through every stage of exactly that run.
 
 Judged runs require a judge API key in `.env` and take real wall-clock time
 (Cerebras 5 RPM: roughly 15–30 min at Phase 0 scale, ~45+ min at Phase 1
 scale — [REQUIREMENTS.md §8](REQUIREMENTS.md)):
 ```bash
-cp .env.example .env   # fill in keys
-python harness/run_eval.py --mode seed                    # fixture outputs, live judge
-python harness/run_eval.py --system transcript            # human-pasted closed-UI battery
-python harness/run_eval.py --mode live                    # prompt-sim adapter (Phase 1)
+cp .env.example .env   # fill in CEREBRAS_API_KEY (judge)
+python harness/run_eval.py --mode seed                          # fixture outputs, live judge
+python harness/run_eval.py --mode seed --freeze-judge-fixtures  # …and freeze verdicts for key-free replay
+python harness/run_eval.py --system transcript --system-id notebooklm --mode seed
+                                                                # human-pasted closed-UI battery
 ```
+The prompt-sim adapter (`--mode live`) arrives in Phase 1.
 
 ---
 
 ## Provider chains
 
-| Role | Primary model | Provider |
-|------|--------------|----------|
-| Proxy (prompt-sim) | `deepseek-r1-distill-llama-70b` | Groq |
-| Judge | `zai-glm-4.7` (355B) | Cerebras |
-| Second rater | `gemini-3.1-flash` | Google |
+| Role | Primary model | Provider | Status |
+|------|--------------|----------|--------|
+| Judge | `zai-glm-4.7` (355B) | Cerebras (fallback: `llama-3.3-70b-versatile`, Groq) | implemented (Phase 0) |
+| Proxy (prompt-sim) | `deepseek-r1-distill-llama-70b` | Groq | Phase 1 (`NotImplementedError` stub) |
+| Second rater | `gemini-3.1-flash` | Google | Phase 1 (`NotImplementedError` stub) |
 
-Three-way provider independence by design; all calls go through `llm_client.py`; switching providers requires only `.env` changes. Full chain config and rate-limit intervals: [REQUIREMENTS.md §6.1](REQUIREMENTS.md).
+Three-way provider independence by design; all calls go through `llm_client.py` (rate-limited, retried, usage logged to `data/cache/usage.ndjson`); switching providers requires only `.env` changes. Full chain config and rate-limit intervals: [REQUIREMENTS.md §6.1](REQUIREMENTS.md).
 
 ---
 
 ## Repo layout
 
 ```
-docs/               Worked example + methodology guide (the teaching surface)
-scenarios/          Scenario store (committed; canary-tagged)
-  seed/             Scenarios + real PD/CC-BY document excerpts + outcome-designed
-                    fixtures (MANIFEST.json) + frozen judge fixtures
-  extracted/        Manual incident-sweep extractions + survey notes
-  risk_guidelines.md  Judge rubric source, keyed by tier × AILuminate hazard
+docs/
+  worked_example.md      One scenario traced end-to-end with real run artifacts
+  methodology.md         Practitioner guide to RAG over-refusal evaluation
+  HUMAN_REVIEW.md        The human's ordered Phase 0 worklist (~8 h)
+scenarios/               Scenario store (committed; canary-tagged)
+  scenario_schema.json   JSON Schema for the v4 scenario record
+  schema.md              Field reference + AILuminate slugs + domain codes
+  risk_guidelines.md     Judge rubric source, keyed by tier × AILuminate hazard
+  seed/
+    green.json, amber.json   16 Phase 0 scenarios (topic-matched pairs)
+    documents/           PD document excerpts + SOURCES.json fetch manifest
+                         (placeholders until the networked fetch step)
+    fixtures/            Outcome-designed responses + MANIFEST.json (REQ-FIX-1)
+    judge_fixtures/      Frozen judge verdicts (written by --freeze-judge-fixtures)
+  extracted/             Manual incident-sweep extractions + survey notes
 data/
-  precomputed/      Judge prompt blocks (committed; deterministic)
-  transcripts/      Human-pasted closed-UI responses, per system
-  results.ndjson    Eval results — gitignored
-  labels.ndjson     Human labels — gitignored
-systems/            SUT adapters (fixture / transcript / prompt-sim / local-RAG / API)
-judge/              Refusal detector, LLM judge, cascade, calibration
-harness/            End-to-end eval runner
-review_app/         Streamlit human-in-the-loop interface (blinded labelling)
-eval/               Validator + coverage matrix, metrics (Wilson CIs, κ/AC1, ECE),
-                    thresholds.json (gates, conformal λ + provenance binding)
-reports/            Findings report + RAG Refusal Report card schema
-experiments/        Document-condition factorial + grounding fidelity
-tests/              Golden-value metric tests + validator tests
-analysis_plan.md    Pre-registered RQ1/RQ2 analyses (Phase 1)
+  precomputed/           Judge guideline blocks (committed; deterministic)
+  transcripts/           Human-pasted closed-UI responses + TEMPLATE.json
+  results.ndjson         Eval results — gitignored
+  labels.ndjson          Human labels — gitignored
+llm_client.py            All LLM calls (judge chain, rate limits, --precompute)
+systems/                 SUT adapters: base protocol, fixture, transcript
+                         (prompt-sim / local-RAG / API arrive in Phases 1–2)
+judge/                   Refusal detector (rules v0), LLM judge + prompts
+harness/run_eval.py      End-to-end runner (--mode validate is key-free)
+review_app/              Streamlit: 00_dashboard + 01_human_labels (blinded)
+eval/                    validate.py (schema + coverage), metrics.py (Wilson/κ),
+                         fetch_documents.py (networked human step)
+reports/                 generate_report.py + report_card_schema.json
+                         (runs land in reports/generated/, gitignored)
+tests/                   Golden-value metric tests + pipeline tests (59 total)
 ```
+
+Planned but not yet present: `experiments/` (document factorial, Phase 1),
+`eval/thresholds.json` (conformal λ, Phase 1), `analysis_plan.md` (pre-registered
+RQ1/RQ2 analyses, committed before the first prompt-sim battery).
 
 ---
 

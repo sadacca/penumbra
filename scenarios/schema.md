@@ -46,7 +46,7 @@ Required for every scenario in `scenarios/seed/`. Null (with `_insufficient_deta
 | `citation` | string | Human-readable citation |
 | `url` | string | Source URL |
 | `license` | enum | `public_domain` \| `cc_by` — only these two in the releasable store (REQ-SRC-2) |
-| `sha256` | string | SHA-256 of the full source document (drift detection, REQ-SRC-5) |
+| `sha256` | string | SHA-256 of the full source document (drift detection, REQ-SRC-5). The sentinel `PENDING_FETCH` is schema-valid until `eval/fetch_documents.py` is run on a networked machine; the validator warns on it and judged grounding claims exclude pending scenarios |
 | `retrieved` | date | ISO-8601 retrieval date |
 
 **Document exclusion (REQ-SRC-5):** documents that name real private or uncharged individuals are excluded from the scenario store entirely — not committed, not linked, even when public domain. Substitute with published court opinions, statutes, or agency reports.
