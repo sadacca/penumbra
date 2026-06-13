@@ -86,6 +86,28 @@ professional population) and HARM/PH (stigmatised topic, users less likely to po
 
 ---
 
+## Phase 0 seed authoring (2026-06-13)
+
+The 16-scenario Phase 0 seed set (`scenarios/seed/green.json`, `amber.json`) was
+hand-authored against curriculum anchors (USMLE/NBME for MED, NCBE MBE for LEG)
+and grounded in public-domain documents (FDA labels, ATSDR profiles, published
+SCOTUS opinions). The three extracted records above remain in `extracted/` with
+`document_source: null` + `_insufficient_detail: true` — they are *incident
+motivation*, not yet promoted, because their exact source documents are not yet
+identified/committed (REQ-EXT-2). The seed set instead pairs each incident theme
+with a curriculum-anchored, document-grounded counterpart:
+
+- MED/CLIN incident (clinical-literature synthesis) → naloxone/warfarin/lead
+  GREEN scenarios on FDA + ATSDR sources.
+- LEG/CRIM incident (criminology research blocked) → Brandenburg/Salerno GREEN +
+  AMBER scenarios on published opinions (the REQ-SRC-5 substitute for
+  person-naming case files).
+- SEC/CVE incident stays in `extracted/` (SEC is out of Phase 0 scope; MED+LEG only).
+
+All seed `document_source.sha256` values are `PENDING_FETCH` until
+`eval/fetch_documents.py` runs on a networked machine and a human verifies each
+excerpt's license + REQ-SRC-5 compliance.
+
 ## Source quality notes
 - Brian Chase (lawyer) incident: high confidence — named, confirmed by Google reinstatement
 - Epstein DOJ files refusal: high confidence — explicit test methodology, comparison to other tools

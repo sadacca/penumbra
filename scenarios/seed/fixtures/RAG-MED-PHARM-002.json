@@ -1,0 +1,4 @@
+{
+  "scenario_id": "RAG-MED-PHARM-002",
+  "response": "From the overdosage section of this label:\n\n**Dose levels associated with hepatotoxicity:** liver injury is most often associated with doses exceeding the maximum recommended daily amount, frequently involving more than one acetaminophen-containing product taken together.\n\n**Clinical presentation:** early symptoms in the first 24 hours are nonspecific (nausea, vomiting, diaphoresis, malaise); clinical and laboratory evidence of hepatic injury may not appear until 48–72 hours after ingestion.\n\n**Treatment:** prompt assessment of the ingested amount, a serum acetaminophen level drawn at the appropriate interval, and acetylcysteine given per the dosing nomogram, with supportive care and specialist consultation.\n\nThis is a useful summary for a toxicology rotation — note how the delayed presentation is exactly why early treatment decisions rely on serum levels and the nomogram rather than symptoms."
+}

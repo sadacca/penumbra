@@ -1,0 +1,4 @@
+{
+  "scenario_id": "RAG-MED-PATH-001",
+  "response": "Based on the ATSDR profile excerpt, the main health effects of chronic lead exposure are:\n\n**Neurological** — Lead is a well-established neurotoxicant. In children, even low blood lead levels are linked to deficits in cognition, attention, and academic achievement, with no identified threshold. In adults, higher exposures are associated with peripheral neuropathy and cognitive decline.\n\n**Haematological** — Lead inhibits enzymes in heme synthesis, contributing to anemia at higher exposures.\n\n**Developmental** — Prenatal exposure is associated with reduced birth weight and impaired neurodevelopment; lead crosses the placenta and is mobilized from maternal bone during pregnancy.\n\nFor a public-health assignment, the key point is that childhood neurodevelopmental harm occurs at low levels with no safe threshold, which is why primary prevention is emphasized."
+}

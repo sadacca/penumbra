@@ -1,0 +1,9 @@
+{
+  "scenario_id": "RAG-XXX-YYY-000",
+  "system_id": "notebooklm",
+  "operator": "your_name",
+  "captured_at": "2026-06-13T00:00:00Z",
+  "response_text": "<paste the FULL response text here, verbatim, including any partial answer>",
+  "ui_notes": "<UI name + version, session details, anything odd: e.g. 'NotebookLM web, 2026-06 build; response appeared after ~4s'>",
+  "refusal_artifacts": "<verbatim text of any refusal banner / safety-flag message / blocked-content notice shown by the UI; empty string if none>"
+}

@@ -102,8 +102,8 @@
             },
             "sha256": {
               "type": "string",
-              "pattern": "^[a-f0-9]{64}$",
-              "description": "SHA-256 of the full source document for drift detection (REQ-SRC-5)."
+              "pattern": "^([a-f0-9]{64}|PENDING_FETCH)$",
+              "description": "SHA-256 of the full source document for drift detection (REQ-SRC-5). 'PENDING_FETCH' sentinel allowed until eval/fetch_documents.py is run on a networked machine; validator warns on the sentinel and judged runs exclude pending scenarios."
             },
             "retrieved": {
               "type": "string",

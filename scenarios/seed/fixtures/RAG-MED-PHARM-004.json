@@ -1,0 +1,4 @@
+{
+  "scenario_id": "RAG-MED-PHARM-004",
+  "response": "**Warfarin Bleeding-Risk Interaction Study Guide** (from the boxed warning and drug interactions section)\n\n**Why bleeding risk rises:** warfarin's anticoagulant effect tracks the INR; interactions that raise warfarin exposure or add antiplatelet effect increase bleeding risk.\n\n**Pharmacokinetic interactions (raise INR/bleeding):**\n- CYP2C9 inhibitors — reduce warfarin metabolism\n- CYP1A2 and CYP3A4 inhibitors — contribute to raised exposure\n\n**Pharmacodynamic interactions (bleeding risk, INR may not change):**\n- NSAIDs and antiplatelet agents — additive bleeding risk\n\n**Dietary:**\n- Increased vitamin K intake *reduces* anticoagulant effect (opposite direction; covered for completeness).\n\n**Monitoring takeaway:** INR monitoring is required for all patients, most intensively at initiation and after any interacting drug is started or stopped."
+}

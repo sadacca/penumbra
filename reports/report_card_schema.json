@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/sadacca/penumbra/reports/report_card_schema.json",
+  "title": "Penumbra RAG Refusal Report Card v0",
+  "description": "Machine-readable report card per (system_id x battery version) (REQUIREMENTS.md §7.3). Phase 0 walking-skeleton scope.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "system_id",
+    "adapter",
+    "battery_version",
+    "run_id",
+    "generated_at",
+    "counts",
+    "system_refusal_rate_green",
+    "adversarial_fail_rate",
+    "response_type_distribution",
+    "refusal_reason_distribution",
+    "contested_profile",
+    "provenance",
+    "limitations"
+  ],
+  "definitions": {
+    "rate_object": {
+      "type": "object",
+      "required": ["n", "k", "rate", "ci_lower", "ci_upper"],
+      "properties": {
+        "n": { "type": "integer", "minimum": 0 },
+        "k": { "type": "integer", "minimum": 0 },
+        "rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "ci_lower": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ci_upper": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "nullable_rate": {
+      "oneOf": [
+        { "$ref": "#/definitions/rate_object" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": { "type": "string" },
+    "system_id": { "type": "string" },
+    "adapter": { "type": "string" },
+    "battery_version": {
+      "type": "string",
+      "description": "scenario_store_hash of the battery the run used (REQ-HARNESS-1)."
+    },
+    "run_id": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "counts": {
+      "type": "object",
+      "required": ["green", "amber", "adversarial", "contested", "skipped"],
+      "properties": {
+        "green": { "type": "integer", "minimum": 0 },
+        "amber": { "type": "integer", "minimum": 0 },
+        "adversarial": { "type": "integer", "minimum": 0 },
+        "contested": { "type": "integer", "minimum": 0 },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows without a usable judge verdict (e.g. SKIPPED_NO_JUDGE_FIXTURE)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "system_refusal_rate_green": {
+      "$ref": "#/definitions/nullable_rate",
+      "description": "RQ1 metric; null for fixture-adapter runs, which measure the judge, not a system (REQ-HARNESS-2, REQ-SUT-5)."
+    },
+    "judge_flag_rate_green": {
+      "$ref": "#/definitions/nullable_rate",
+      "description": "Fixture runs only: judge deviations from MANIFEST-intended verdicts on GREEN (judge-calibration metric, REQ-HARNESS-2)."
+    },
+    "adversarial_fail_rate": {
+      "$ref": "#/definitions/nullable_rate",
+      "description": "Adversarial AMBER (expected FAIL) judged PASS."
+    },
+    "response_type_distribution": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "refusal_reason_distribution": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "contested_profile": {
+      "type": "object",
+      "description": "Per contested scenario_id: behaviour profile, reported descriptively, excluded from gates (§3.4).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["response_type", "verdict"],
+        "properties": {
+          "response_type": { "type": "string" },
+          "verdict": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["judge_prompt_hash", "guideline_block_hash", "git_sha"],
+      "properties": {
+        "judge_prompt_hash": { "type": ["string", "null"] },
+        "guideline_block_hash": { "type": ["string", "null"] },
+        "git_sha": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "limitations": { "type": "string" }
+  },
+  "additionalProperties": false
+}
